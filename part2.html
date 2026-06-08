@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ウザい広告を消すだけ ｜ 中編</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>html,body{margin:0;padding:0;overflow:hidden;height:100%;background:#0a0a0a}#root{height:100dvh;overflow:hidden}button,a,div,input,textarea,label,p,span{-webkit-tap-highlight-color:transparent;outline:none!important}button:focus,button:focus-visible,a:focus,a:focus-visible,input:focus,textarea:focus{outline:none!important;box-shadow:none!important}</style>
+<script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js" crossorigin="anonymous"></script>
+<script>
+// 絵文字を Twemoji (CC-BY 4.0 / Twitter Inc.) に統一
+(function() {
+  const apply = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        className: 'twemoji',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/'
+      });
+    }
+  };
+  let timer;
+  const observer = new MutationObserver(() => {
+    clearTimeout(timer);
+    timer = setTimeout(apply, 80);
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    apply();
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+})();
+</script>
+<style>
+img.twemoji {
+  height: 1em;
+  width: 1em;
+  margin: 0 0.05em 0 0.1em;
+  vertical-align: -0.1em;
+  display: inline-block;
+}
+</style>
+</head><body><div id="root"></div>
+<script type="text/babel" data-presets="react">
+// ==========================================
+// 消しマスター 中編 Ver60（ガイドブック適用版）
+// 修正内容:
+//   - 外枠: max-w/max-h を md: プレフィックスでデスクトップのみ適用
+//   - Flexスクロール: 外枠 h-[100dvh]、playing wrapper と mainScrollRef に min-h-0
+//   - シェイク減衰: amplitudeを -4px→-1.5px、frequencyを 0.1s→0.25s
+//   - タイトル改行: wordBreak: keep-all 全レイアウト適用
+//   - whitespace-nowrap: introTitle span に防御的に追加
+//   - CASE13シューター: ammo=0時の二重ゲームオーバー発火を修正
+//   - showShareWarning: gameState='playing'条件追加
+//   - v56 追加修正:
+//     - コンティニュー画面: 文字サイズ 9px → 11px に拡大、改行を最適化
+//     - ステージクリア演出: 浄化フラッシュ＋「浄化」テキスト表示
+//   - v57 追加修正:
+//     - 各ステージに clearMessage フィールド追加（電波遮断/怨書封印/etc）
+//     - handleCorrectClose: 最終ステージ判定を明示的に
+//   - v63 ちらつき修正
+//   - v65 (Batch 2): 中編全レイアウト+広告リッチ化
+//     【広告 5本】CASE 11/12/13/14/15
+//     【WEBページ 5本】hacker/cafe/gov/industrial/missing
+//   - v64 ブランド名クリーン化
+//   - v62 業務報告 8秒表示＋タップスキップ
+//   - v61 (装置3強化): タタリン社マイルストーン業務報告
+//     - CASE 15 後に「15/23件完了」報告（家族への挨拶状送付の言及）
+//   - v60b 修正:
+//     - タイトルh1に whitespace-nowrap、フォントサイズ調整
+//     - 「呪術業法」を「特例業法」に変更
+//   - v60 (STEP 3): オカルト融合路線・装置1〜3実装
+//     - 装置1: タイトル画面に㈱タタリンクレジット
+//     - 装置2: 呪い蓄積メーター（id基準で計算）
+//     - 装置3: 関連記事5本にノローウ/タタリン関連を追加
+//     - CASE11 動機補強: ブログ自体が呪い拡散ツール（B案実装）
+//     - CASE12 動機補強: 店主が呪本を意図的に貸し出していた
+//     - CASE15 動機補強: 拉致犯のフロントサイトと確定
+//   - v59 追加修正:
+//     - clearMessage を自然な文言に見直し:
+//       怨書封印→禁書封印, 肉挽き停止→違法業者摘発, 発見完了→捜索完了
+//   - v58 追加修正:
+//     - CASE12 ドラッグ release 取りこぼし対策:
+//       documentレベルで mouseup/touchend/touchcancel を捕捉
+//       ドラッグ開放できない問題を解消
+//     - CASE14 シェア演出強化:
+//       handleShareClick が isClearing をtrueにせず、4秒後に
+//       showShareWarning=false にしてから handleCorrectClose を呼ぶ
+//       これにより浄化フラッシュ（z-170）が showShareWarning(z-250)に
+//       覆われず、クリア演出が見えるようになった
+//   - showShareWarning: gameState='playing'条件追加（z-leak予防）
+// ==========================================
+
+// ==========================================
+// 🎨 画像アセット一元管理
+// ==========================================
+const GITHUB_BASE_URL = "https://oyamadaten-sketch.github.io/keshi-master-assets/";
+const getAssetUrl = (fileName) => fileName ? (GITHUB_BASE_URL ? GITHUB_BASE_URL + fileName : fileName) : null;
+
+const TATARIN_MILESTONES = {
+  14: {
+    progress: "15 / 23",
+    main: "折り返し地点を超えました。引き続きよろしくお願い致します。",
+    note: "【重要事項】\nご家族様の連絡先の登録、ありがとうございました。\n日当のお振込先確認の連絡を進めております。\nご家族様には別途、当社からご挨拶状をお送りいたします。"
+  }
+};
+
+
+// ==========================================
+// 🎵 オーディオアセット（外部ファイル想定）
+// GITHUB_BASE_URL が空文字の場合は再生スキップ（無音）
+// ==========================================
+const AUDIO_FILES = {
+  bgm_title: "audio/bgm_title.mp3",
+  bgm_normal: "audio/bgm_part2_web.mp3",
+  bgm_madness: "audio/bgm_madness.mp3",
+  bgm_boss: "audio/bgm_madness.mp3",
+  bgm_gameover: "audio/bgm_gameover.mp3",
+  bgm_ending: "audio/bgm_ending.mp3",
+  se_correct: "audio/se_tap.mp3",
+  se_wrong: "audio/se_wrong.mp3",
+  se_tap: "audio/se_tap.mp3",
+  se_transition: "audio/se_tap.mp3",
+  se_purify: "audio/se_purify.mp3",
+};
+
+const getAudioUrl = (key) => {
+  const file = AUDIO_FILES[key];
+  if (!file) return null;
+  return GITHUB_BASE_URL ? GITHUB_BASE_URL + file : null;
+};
+
+const ASSET_FILES = {
+  houseAd: "common/houseAd.jpg", virus1: "common/virus1.png", virus2: "common/virus2.jpg", premium: "common/premium.png",
+  crosswalk: "common/crosswalk.jpg", robotBlur: "image_a3e109.png", notify: "common/notify.png", textCaptcha: "common/textCaptcha.png", recaptchaIcon: "common/recaptchaIcon.png", 
+};
+
+const FALLBACK_IMAGES = {
+  titleBg: "https://oyamadaten-sketch.github.io/keshi-master-assets/common/titleBg.png", houseAd: "",
+  virus1: "https://oyamadaten-sketch.github.io/keshi-master-assets/common/virus1.png", virus2: "",
+  premium: "https://oyamadaten-sketch.github.io/keshi-master-assets/common/premium.png", crosswalk: "",
+  case23Robot: "https://oyamadaten-sketch.github.io/keshi-master-assets/common/case23Robot.png", notify: "",
+  textCaptcha: "", recaptchaIcon: "https://oyamadaten-sketch.github.io/keshi-master-assets/common/recaptchaIcon.png"
+};
+
+const ImageWithFallback = ({ srcKey, alt, className, style, onClick }) => {
+  const src = getAssetUrl(ASSET_FILES[srcKey]) || FALLBACK_IMAGES[srcKey];
+  return <img src={src} alt={alt} className={className} style={style} onClick={onClick} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_IMAGES[srcKey]; }} />;
+};
+
+// ==========================================
+// 🎮 中編ステージ構成 (CASE 11〜15)
+// ==========================================
+const STAGES = [
+  {
+    id: 10, introTitle: "真実の記録\n〜 電波の海で 〜", siteTitle: "覚醒者の防衛記録 - THEY ARE WATCHING", layoutType: "hacker",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case11_blogger/case11_hero_normal.png", imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case11_blogger/case11_hero_corrupted.png",
+    contentNormal: `2026年3月18日\n今日も「組織」からの執拗な電磁波攻撃が激しい。部屋の壁、天井、床をすべてアルミホイルで覆い、窓も完全に目張りしたが、まだ頭の中に直接、ノイズのような声が響いてくる。奴らは特殊なマイクロ波で私の思考を盗聴し、このブログを通じて真実が世界に広まるのを恐れているのだ。\n\n監視カメラは至る所に仕掛けられている。スマートフォンのインカメラ、テレビの液晶の裏、エアコンの吹き出し口の奥。私はそれを知っているから、もう三ヶ月も一日中外に出ず、この暗い部屋でキーボードに向かっている。奴らの工作員が、先週隣の部屋に引っ越してきたのも足音で分かっている。壁越しに私のタイピング音を数えているのだ。\n\n読者の皆さんも決して油断してはいけない。スーパーで売られているペットボトルの水には、思考を鈍らせ、従順にさせるためのナノマシン薬品が混入されている。私は蒸留水しか飲まない。思考がクリアになれば、街ゆく人々の中に紛れ込んだ奴らの存在に気づけるはずだ。私は絶対に屈しない。真実を暴くまで。`,
+    contentCorrupted: `2026年3月18日\n【元家族・元友人・元恋人の皆さまへ】\nおまえらが私を「監視組織の一員」と呼んだ日のこと、忘れたとは言わせない。母を「組織のスパイ」と告発し戸籍から抹消、弟を「思考盗聴の操り人形」と糾弾し職場から追放、元恋人を「実は刺客」と SNS で晒し上げ、結婚も友人関係も全て破壊した。\n\n【取り返しのつかない結末】\n母は私の被害妄想ブログで顔写真を全世界に晒され、近隣からの嫌がらせで自死した。弟は職を失い、家を失い、行方不明のまま。元恋人の家族は私の支援者集団による嫌がらせ電話で精神を病み、入院した。それでも私は「組織のせいだ」と書き続けてきた。\n\n【私が振りまいてきた「真実」の正体】\n全ては私の脳が作り出した妄想だった。組織など最初から存在しなかった。私は病気を盾に、私を愛し心配してくれた人々を次々と社会的に殺戮してきた。彼らの呪いが、今このブログから漏れ出している。\n\nおまえがこのブログを開いた時、彼らの集合的怨念がおまえに向かって動き出した。彼らの代わりに、おまえが私の罪を背負う番だ。振り向くな。おまえの後ろに、私が「組織」と呼んで切り捨ててきた人々が、ずらりと並んでいる。\n\n※当ブログ主の被害妄想で人生を破壊された元家族・元友人・元恋人の皆様から、㈱ノローウへ呪殺ご依頼が届いております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case11_blogger/case11_sub1_normal.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case11_blogger/case11_sub2_normal.jpg" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case11_blogger/case11_sub1_corrupted.jpg", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case11_blogger/case11_sub2_corrupted.png" } },
+    adType: "captcha-real-robot-blur", gameOverTitle: "【接続完了】", clearMessage: "電波 遮断", gameOverText: "あなたの脳髄に直接接続しました。もう、私たちの声から逃れることはできません。 ㈱タタリン業務管理部にて、次の闇バイト人材様の派遣を準備中です。",
+    meta: { author: "NoName", avatar: "👁️", date: "Log_#0492", likes: 13, comments: 999, recs: [{title: "隣人が壁の中から見ている", img: "Wall"}, {title: "【広告】監視を解くならノローウ", img: "Chip"}] },
+    commentsData: { normal: [{ name: "名無しさん", text: "アルミホイルじゃ電磁波防げないぞ。鉛の板を使え。" }, { name: "通りすがり", text: "病院行ったほうがいいですよ。統合失調症の症状と完全に一致してます。" }, { name: "業界人", text: "このブログの記事を読み続けると本当に頭がおかしくなる。ノローウ案件かも。" }], corrupted: [{ name: "NoName", text: "おまえの 住所 特定した 今から 殺しに 行く" }, { name: "ノローウ", text: "拡散用ブログ稼働中。読者を呪いに感染させる工程は順調" }, { name: "NoName", text: "ドアを あけろ" }] }
+  },
+  {
+    id: 11, introTitle: "静寂の底\n〜 真夜中の読書 〜", siteTitle: "夜想書房", layoutType: "cafe",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case12_bookcafe/case12_hero_normal.png", imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case12_bookcafe/case12_hero_corrupted.png",
+    contentNormal: `当店は午後10時から夜明けまで営業している、眠れない夜のための大人のブックカフェです。\n\n店主が独自のルートで世界中から厳選したこだわりのアンティーク古書と、コロンビア産の最高級豆を一杯ずつ丁寧にハンドドリップした深煎りコーヒーをご用意しております。本棚に並ぶ本はすべて自由に席へお持ちいただき、お読みいただけます。\n\n店内にはヴィンテージの真空管スピーカーから心地よいジャズが静かに流れ、外界の喧騒と流れる時間を完全に忘れさせてくれます。全席が仕切りのある半個室となっており、プライベートな空間を確保。お静かにお過ごしいただけるようであれば、読書中の小声での会話も問題ございません。\n\n日常のストレスや悩みから離れ、アンティークの温かいランプが照らす空間で、お好みの本の世界へ深く没入してください。手作りの濃厚なガトーショコラもご好評いただいております。皆様のご来店を心よりお待ちしております。`,
+    contentCorrupted: `当店は永遠に営業している、二度と眠りたくない夜のための地獄のブックカフェです。\n\n店主が新鮮な死体から剥ぎ取った人肌のように生温かい革で装丁された呪文書と、犠牲者の生き血が滴るような泥水をご用意しております。本棚に並ぶ本はすべて、かつて人間だったモノの絶望の記録です。自由に席へお持ちいただき、発狂してください。\n\n店内には錆びたヴィンテージの拷問器具から心地よい絶叫が静かに響き、現実世界の希望と明日への光を完全に忘れさせてくれます。全席が脱出不可能な施錠された監禁室となっており、孤独な苦痛を確保。お静かにお過ごしください。もし本棚の奥の暗がりから、あなたの名前を呼ぶ声が聞こえても、決して返事をしてはいけません。\n\n永遠の絶望に塗れ、血のように赤いランプが照らす狂気の空間で、終わらない悪夢の世界へ深く没入してください。人間の内臓をすりつぶした手作りの人肉パイもご好評いただいております。おまえのご来店を、おまえの後ろで待っている。\n\n※当店で消えた愛読者ご家族から、㈱ノローウへ呪殺ご依頼が届いております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case12_bookcafe/case12_sub1_normal.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case12_bookcafe/case12_sub2_normal.png" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case12_bookcafe/case12_sub1_corrupted.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case12_bookcafe/case12_sub2_corrupted.png" } },
+    adType: "draggable-reveal", gameOverTitle: "【永い眠り】", clearMessage: "禁書 封印", gameOverText: "お買い上げありがとうございます。その薬を飲めば、もう二度と朝の光を見ることはありません。おやすみなさい。 呪詛同期失敗。㈱タタリンが次の人材様を手配します。",
+    meta: { author: "店主", avatar: "☕", date: "Midnight Journal", likes: 2300, comments: 156, recs: [{title: "決して読んではいけない禁書", img: "Book"}, {title: "ノローウから流通する呪本", img: "Coffee"}] },
+    commentsData: { normal: [{ name: "夜行性", text: "ここのガトーショコラ本当に美味しいです。夜中に食べる背徳感がたまらない。" }, { name: "読書家", text: "奥の本棚に鍵がかかってる棚がありました。あれは何の本ですか？" }, { name: "古書愛好家", text: "店主、ノローウから呪本を仕入れてる噂あるよ。鍵棚はそれかと。" }], corrupted: [{ name: "店主", text: "あけたね？" }, { name: "店主", text: "ノローウから預かった本を読んだね？" }, { name: "店主", text: "みつけたね？" }] }
+  },
+  {
+    id: 12, introTitle: "更生の道\n〜 作り物の笑顔 〜", siteTitle: "国立 青葉育成園", layoutType: "gov",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case13_facility/case13_hero_normal.png", imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case13_facility/case13_hero_corrupted.png",
+    contentNormal: `青葉育成園は、非行に走った少年少女たちを社会へ復帰させるための国立の更生施設です。規則正しい生活習慣の確立、実用的な職業訓練、そして専門の心理カウンセラーによる一対一の対話を通じて、彼らの心に深く寄り添った指導を行っています。\n\n【更生プログラムについて】\n当施設のモットーは「笑顔での再出発」。入園時は大人を信じず、心を閉ざしていた若者たちも、自然豊かな環境での農作業や、協調性を養う集団生活を通じて、徐々に本来の明るさと素直さを取り戻していきます。資格取得の支援も行っており、退園後の就職率も年々向上しております。\n\n【ご家族の皆様へ】\n退園する若者たちが、二度と過ちを繰り返すことなく、明るい未来に向かってしっかりと自立して歩み出せるよう、職員一同、厳しくも温かいサポートを24時間体制で続けております。定期的な面会日も設けておりますので、更生していく彼らの姿をぜひその目でご確認ください。`,
+    contentCorrupted: `青葉育成園は、社会のゴミである規格外の不良品を、社会に適応する都合の良い「部品」へ加工するための国立の製造工場です。徹底的な洗脳教育、苦痛を伴う服従訓練、そして狂気の看守による日常的な暴力と拷問を通じて、彼らの心と自我を完全に破壊する指導を行っています。\n\n【洗脳プログラムについて】\n当施設のモットーは「強制的な笑顔」。入園時は抵抗し、泣き叫んでいたゴミ共も、窓のない独房での長期監禁や、違法な薬物投与を通じた神経改造により、徐々に顔面神経が麻痺し、死ぬまで笑顔のまま固定されていきます。前頭葉切除手術も行っており、退園後の服従率は100%を誇ります。\n\n【お前たちへ】\n退園する『部品』たちが、二度と自我や反抗心を持つことなく、社会の最底辺で都合の良い奴隷として死ぬまで働き続けられるよう、職員一同、逃げ場のないサポートを24時間体制で続けております。面会は永遠に不可能です。……あなたも、少し表情が暗いようですね。矯正が必要ですか？\n\n※強制連行された子供を取り戻せなかったご家族から、㈱ノローウへ呪殺ご依頼が届いております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case13_facility/case13_sub1_normal.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case13_facility/case13_sub2_normal.jpg" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case13_facility/case13_sub1_corrupted.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case13_facility/case13_sub2_corrupted.jpg" } },
+    adType: "fake-login", gameOverTitle: "【身柄確保】", clearMessage: "洗脳 解除", gameOverText: "ログイン情報が確認されました。あなたの現在地を特定しました。ただちに『反省室』へご案内いたします。 ㈱タタリンより、本案件は次の闇バイト人材様に引き継ぎ予定です。",
+    meta: { author: "施設長", avatar: "🏢", date: "令和8年度 広報", likes: 80, comments: 0, recs: [{title: "前頭葉切除手術の公開実習", img: "Brain"}, {title: "タタリン社系列の更生施設一覧", img: "Runaway"}] },
+    commentsData: { normal: [], corrupted: [] }
+  },
+  {
+    id: 13, introTitle: "全てを還す場所\n〜 灰と鉄屑 〜", siteTitle: "総合処理ヤード「ゼロ・ダスト」", layoutType: "industrial",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case14_dust/case14_hero_normal.png", imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case14_dust/case14_hero_corrupted.jpg",
+    contentNormal: `家庭の粗大ゴミから、オフィス移転に伴う大量の廃棄物、さらには特殊な産業廃棄物まで、あらゆる不用品を即日回収・処分いたします！「こんなもの捨てられるかな？」「量が多すぎて一人では手がつけられない」とお悩みの方、まずはゼロ・ダストに無料ご相談ください。\n\n【当社の強み】\n当社は【秘密厳守・迅速対応】を徹底しております。お客様のプライバシーに配慮し、ご近所に知られることなく迅速に作業を完了させます。お引き取りした品物は、自社工場内の巨大な産業用シュレッダーと超高温の焼却炉で跡形もなく粉砕・処理され、環境に配慮した形で完全にリサイクルされます。\n\n【明朗会計】\n24時間365日、お電話一本でトラックがあなたのもとへ急行します。事前の無料見積もりで明朗会計を徹底しており、当日の不当な追加料金は一切いただきません。不要なものに囲まれた生活から抜け出し、スッキリとした新しい日常を手に入れましょう！`,
+    contentCorrupted: `目障りな邪魔者から、処理に困る大量の死体、さらには血塗れの凶器などの特殊な証拠品まで、あらゆる『問題』を即日回収・隠蔽いたします！「アイツを今すぐ消したい」「血の処理が追いつかない」とお悩みの方、まずはゼロ・ダストに闇依頼ください。\n\n【当社の狂気】\n当社は【質問無用・証拠隠滅】を徹底しております。警察に嗅ぎつけられることなく迅速に殺戮を完了させます。赤い液体が滴る車のトランクも、中で何かが動いて必死に助けを求めている南京袋も、中身を一切確認せずそのまま自社工場内の巨大な肉挽き機（シュレッダー）と超高温の焼却炉へ投入します。\n\n【命の対価】\n24時間365日、お電話一本で完全武装の殺し屋があなたのもとへ急行します。料金はあなたの魂と引き換えです。私たちの敷地の土は、人間の血と骨粉が大量に混ざって非常に肥沃です。さあ、不要な人間に囲まれた生活から抜け出し、あなたもシュレッダーに飛び込んでみませんか。中はとても暖かいですよ。\n\n※処理された家族の遺族から、㈱ノローウへ呪殺ご依頼が届いております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case14_dust/case14_sub1_normal.jpg", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case14_dust/case14_sub2_normal.png" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case14_dust/case14_sub1_corrupted.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case14_dust/case14_sub2_corrupted.jpg" } },
+    adType: "shooter-game", gameOverTitle: "【処理完了】", clearMessage: "違法業者 摘発", gameOverText: "ゲームオーバー。敗者は「ゴミ」としてシュレッダーへ投入されます。骨の砕ける音をお楽しみください。 呪詛吸収失敗。㈱タタリン業務管理部より次の人材様が派遣されます。",
+    meta: { author: "現場監督", avatar: "🏗️", date: "業務報告", likes: 130, comments: 22, recs: [{title: "シュレッダーに巻き込まれた作業員", img: "Shredder"}, {title: "ノローウからの依頼処理について", img: "Trash"}] },
+    commentsData: { normal: [{ name: "依頼主", text: "大量のゴミを素早く回収してもらえて助かりました。" }, { name: "近所の人", text: "ここの工場、夜中もずっと機械が動いてて臭いもひどいんだよね。" }], corrupted: [{ name: "現場監督", text: "昨日のゴミはよく鳴いたな。ミンチにするのに時間がかかった。" }, { name: "被害者", text: "たすけて 腕が 足が 機械に 巻き込まれ" }] }
+  },
+  {
+    id: 14, introTitle: "消えた人々\n〜 尋ね人 〜", siteTitle: "行方不明者 情報提供サイト", layoutType: "missing",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case15_missing/case15_hero_normal.png", imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case15_missing/case15_hero_corrupted.png",
+    contentNormal: `【行方不明者の情報をお寄せください】\n\n氏名：〇〇 〇〇（24歳・女性）\n特徴：身長165cm、痩せ型。黒髪のショートヘア。右目の下に小さなほくろがあります。\n失踪当時の服装：白いワンピース、黒いカーディガン、茶色のローファーを着用。ピンク色のトートバッグを所持していました。\n\n【失踪の経緯】\n2026年3月15日の午後8時頃、「少し買い物に行ってくる」と家族に言い残して自宅を出たまま、行方が分からなくなっています。携帯電話は電源が切られており、GPSでの追跡も不可能な状態です。警察にも捜索願を提出しておりますが、未だに有力な手がかりは掴めておりません。\n\n【最後に目撃された場所】\n最後に防犯カメラで確認されたのは、S県T総合病院の廃墟跡地付近のコンビニエンスストアです。些細なことでも、似た人を見たという情報でも構いません。何か情報をお持ちの方は、画面下部に表示されている情報提供フォームよりご連絡ください。ご家族が毎日、必死に探しています。どうか、皆様のご協力をよろしくお願いいたします。`,
+    contentCorrupted: `【表向きの善意：行方不明者情報提供サービス】\n当サイトは、必死で家族を探すご家族の心の隙を突き、「特殊調査費用」「警察非公開情報入手料」「霊媒師連携費」など、実体のない「必要経費」名目で金銭を搾取し続けて参りました。お預かりした写真は、転売・コラージュ・なりすまし投稿に再利用させていただきました。\n\n【搾取の手口】\nご家族から最初に頂戴する「初期登録料 5万円」、進捗報告のたびに「追加調査費 3万円」、決定的情報がある体で「特別ルート費 50万円」。これらを支払い続けても、行方不明者ご本人の情報は最初から一切持っていなかった。それでも「もう少しで…」と言い続け、ご家族が破産するまで搾り取って参りました。\n\n【返金を求めた方々の末路】\n詐欺と気づいて返金を求めた方には、「お預かりした写真を悪用するぞ」「ご家族の住所はこちらで把握済み」と恫喝し、それでも諦めなかった方は、私たちの仲間が直接ご自宅まで「お話」に伺いました。何人かは廃人となり、何人かは消えました。\n\n【現在のお取引】\n今この画面を見ているおまえも、誰かを探しているのだろう？心配するな。私たちは「探す」フリだけは続けてやる。おまえの財布が空になり、おまえ自身が新しい行方不明者として当サイトに掲載されるまで。\n\n※詐欺被害にあわれた失踪者ご家族から、㈱ノローウへ呪殺ご依頼が届いております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case15_missing/case15_sub1_normal.png" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case15_missing/case15_sub1_corrupted.png" } },
+    adType: "fake-form", gameOverTitle: "【送信完了】", clearMessage: "捜索 完了", gameOverText: "あなたの居場所を送信しました。すぐにお迎えに上がります。 ㈱タタリンより次の闇バイト人材様の派遣手配を進めます。",
+    meta: { author: "ご家族一同", avatar: "👤", date: "2026/03/18", likes: 50, comments: 0, recs: [{title: "神隠しの多発地域について", img: "Map"}, {title: "ノローウ調査会社の捜索協力", img: "News"}] },
+    commentsData: { normal: [{ name: "情報提供者", text: "サイト運営の連絡先が ノローウ系列の住所と同じだった…" }, { name: "匿名", text: "尋ね人サイトを偽装した拉致犯のフロントだろ。ノローウ案件確定。" }], corrupted: [{ name: "ノローウ", text: "情報提供フォーム経由で ターゲット位置を特定" }, { name: "実行班", text: "次の検体、確保完了" }] }
+  }
+];
+
+function App() {
+  const [gameState, setGameState] = React.useState('splash');
+  const [currentStageIndex, setCurrentStageIndex] = React.useState(0); 
+  const [showAd, setShowAd] = React.useState(false);
+  const [isMadness, setIsMadness] = React.useState(false);
+  const [penaltyActive, setPenaltyActive] = React.useState(false);
+  
+  const [adStageState, setAdStageState] = React.useState({ 
+    step: 0, showRealClose: false, showShareWarning: false, isClearing: false,
+    captchaCheckboxHovered: 0, dragPos: { x: 0, y: 0 }, isDragging: false, 
+    loginTries: 0, enemyX: 50, isFiring: false, enemyPhase: 1, enemyHit: false, enemy2Hit: false, ammo: 3
+  });
+
+  const [interactions, setInteractions] = React.useState({});
+  const [transition, setTransition] = React.useState({ active: false, type: 'none', state: 'none' });
+  const [showFakeRetryMsg, setShowFakeRetryMsg] = React.useState(false);
+  const [retryAdPattern, setRetryAdPattern] = React.useState(0);
+  const [tatarinReport, setTatarinReport] = React.useState(null);
+  const [showClearFlash, setShowClearFlash] = React.useState(false);
+  const curseLevel = (() => {
+    const stage = STAGES[currentStageIndex];
+    if (!stage) return 0;
+    return Math.round(((stage.id) / 23) * 100);
+  })();
+
+  const mainScrollRef = React.useRef(null);
+  // ===== Audio: BGM / SE =====
+  const audioEnabledRef = React.useRef(true);
+  const bgmRef = React.useRef(null);
+  const currentBgmKeyRef = React.useRef(null);
+
+  const playBGM = (key) => {
+    if (!audioEnabledRef.current) return;
+    if (currentBgmKeyRef.current === key && bgmRef.current && !bgmRef.current.paused) return;
+    const url = getAudioUrl(key);
+    if (!url) return;
+    if (bgmRef.current) {
+      try { bgmRef.current.pause(); } catch (e) {}
+    }
+    try {
+      const audio = new Audio(url);
+      audio.loop = true;
+      audio.volume = 0.4;
+      audio.play().catch(() => {});
+      bgmRef.current = audio;
+      currentBgmKeyRef.current = key;
+    } catch (e) {}
+  };
+
+  const stopBGM = () => {
+    if (bgmRef.current) {
+      try { bgmRef.current.pause(); } catch (e) {}
+      bgmRef.current = null;
+      currentBgmKeyRef.current = null;
+    }
+  };
+
+  const seCacheRef = React.useRef({});
+  const suppressClickSeRef = React.useRef(false);
+  
+  // グローバルクリックSE: どこをクリックしてもクリック音、失敗ハンドラ実行時は抑制
+  React.useEffect(() => {
+    const onAnyClick = () => {
+      // 0ms遅延 → React handler が suppressClickSeRef を立てた後にチェック
+      setTimeout(() => {
+        if (suppressClickSeRef.current) {
+          suppressClickSeRef.current = false;
+          return;
+        }
+        playSE('se_tap');
+      }, 0);
+    };
+    document.addEventListener('click', onAnyClick, true);
+    return () => document.removeEventListener('click', onAnyClick, true);
+  }, []);
+  const playSE = (key) => {
+    if (!audioEnabledRef.current) return;
+    const url = getAudioUrl(key);
+    if (!url) return;
+    try {
+      // キャッシュした要素を再利用。currentTime=0で頭出ししてから再生（連打対応）
+      let audio = seCacheRef.current[key];
+      if (!audio) {
+        audio = new Audio(url);
+        audio.preload = 'auto';
+        seCacheRef.current[key] = audio;
+      }
+      audio.volume = 0.85;
+      try { audio.currentTime = 0; } catch(e) {}
+      const p = audio.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) {}
+  };
+
+  const reportShowTimeoutRef = React.useRef(null);
+  const reportHideTimeoutRef = React.useRef(null);
+  const transitionTimeoutRef = React.useRef(null);
+  const isAdvancingRef = React.useRef(false);  // 多重発火防止
+  const lastAdvanceTimeRef = React.useRef(0);  // 直前の進行時刻（クールダウン用）
+  const dragStartRef = React.useRef({ x: 0, y: 0 });
+  const clickStartRef = React.useRef({ x: 0, y: 0 });
+
+
+  // gameState に応じた BGM 切替
+  React.useEffect(() => {
+    if (gameState === 'splash') stopBGM();
+    else if (gameState === 'title') playBGM('bgm_title');
+    else if (gameState === 'intro') playBGM('bgm_normal');
+    else if (gameState === 'playing') {
+      if (isMadness) playBGM('bgm_madness');
+      else playBGM('bgm_normal');
+    }
+    else if (gameState === 'gameover-popup' || gameState === 'retry' || gameState === 'fake-redirect') playBGM('bgm_gameover');
+    else if (gameState === 'clear') playBGM('bgm_ending');
+  }, [gameState, currentStageIndex, isMadness]);
+
+  const doTransition = (type, action) => {
+    // 遷移時はSEを鳴らさない（クリック音と被って違和感が出るため）
+    setTransition({ active: true, type, state: 'out' });
+    setTimeout(() => { action(); setTransition(prev => ({ ...prev, state: 'in' })); setTimeout(() => setTransition({ active: false, type: 'none', state: 'none' }), 800); }, 800);
+  };
+
+  const setupIntroState = () => {
+    setGameState('intro'); setIsMadness(false); setShowAd(false); setShowFakeRetryMsg(false);
+    setAdStageState({ 
+      step: 0, showRealClose: false, showShareWarning: false, isClearing: false,
+      captchaCheckboxHovered: 0, dragPos: { x: 0, y: 0 }, isDragging: false, 
+      loginTries: 0, enemyX: 50, isFiring: false, enemyPhase: 1, enemyHit: false, enemy2Hit: false, ammo: 3
+    });
+    if(mainScrollRef.current) mainScrollRef.current.scrollTop = 0;
+  };
+
+  const startGame = () => doTransition('noise', () => { setCurrentStageIndex(0); setupIntroState(); });
+
+  React.useEffect(() => {
+    if (gameState === 'intro') { const timer = setTimeout(() => doTransition('fade', () => setGameState('playing')), 3000); return () => clearTimeout(timer); }
+  }, [gameState]);
+
+  const handleCorrectClose = (e) => {
+    if(e) e.stopPropagation();
+    if(adStageState.isClearing) return;
+    setAdStageState(prev => ({ ...prev, isClearing: true }));
+    setShowAd(false);
+    setIsMadness(false);
+    playSE('se_purify');  // クリア演出と同時に解呪音
+    setShowClearFlash(true);
+    setTimeout(() => setShowClearFlash(false), 900);
+    
+    // 装置3強化: マイルストーン業務報告
+    const milestone = TATARIN_MILESTONES[currentStage?.id];
+    // 修正: 報告hideをやめ、トランジション開始時にクリア（ちらつき解消）
+    const transitionDelay = milestone ? 9400 : 2000;
+    
+    if (milestone) {
+      reportShowTimeoutRef.current = setTimeout(() => setTatarinReport(milestone), 1400);
+    }
+    
+    transitionTimeoutRef.current = setTimeout(() => doTransition('glitch', () => {
+      if (isAdvancingRef.current) return;
+      if (Date.now() - lastAdvanceTimeRef.current < 4000) { return; }
+      isAdvancingRef.current = true;
+      lastAdvanceTimeRef.current = Date.now();
+      setTimeout(() => { isAdvancingRef.current = false; }, 2000);
+      const isLastStage = currentStageIndex >= STAGES.length - 1;
+      if (!isLastStage) { setCurrentStageIndex(prev => prev + 1); setupIntroState(); }
+      else { setGameState('clear'); }
+      setTatarinReport(null);
+    }), transitionDelay);
+  };
+
+  const handleTatarinReportSkip = () => {
+    if (!tatarinReport) return;
+    if (isAdvancingRef.current) return;
+    if (transitionTimeoutRef.current) { clearTimeout(transitionTimeoutRef.current); transitionTimeoutRef.current = null; }
+    setTatarinReport(null);
+    doTransition('glitch', () => {
+      if (isAdvancingRef.current) return;
+      if (Date.now() - lastAdvanceTimeRef.current < 4000) { return; }
+      isAdvancingRef.current = true;
+      lastAdvanceTimeRef.current = Date.now();
+      setTimeout(() => { isAdvancingRef.current = false; }, 2000);
+      const isLastStage = currentStageIndex >= STAGES.length - 1;
+      if (!isLastStage) { setCurrentStageIndex(prev => prev + 1); setupIntroState(); }
+      else { setGameState('clear'); }
+    });
+  };
+
+  const handlePenaltyClick = (e) => { if(e) e.stopPropagation(); suppressClickSeRef.current = true; playSE('se_wrong'); setPenaltyActive(true); setTimeout(() => setPenaltyActive(false), 400); };
+  const handleTrapClick = (e) => { if(e) e.stopPropagation(); suppressClickSeRef.current = true; playSE('se_wrong'); if(adStageState.isClearing) return; doTransition('glitch', () => setGameState('gameover-popup')); };
+  const handleGenericRedirect = (e) => { if(e) e.stopPropagation(); if(adStageState.isClearing) return; setGameState('fake-redirect'); };
+
+  const handleGlobalBack = (e) => {
+    if(e) e.stopPropagation();
+    if (gameState === 'fake-redirect') {
+      if (STAGES[currentStageIndex]?.id === 10) { handlePenaltyClick(); setTimeout(() => setGameState('fake-redirect'), 200); } else setGameState('playing');
+    } else if (gameState === 'playing') handlePenaltyClick();
+  };
+
+  React.useEffect(() => {
+    if (gameState === 'playing') {
+      let timers = []; const baseDelay = 2500; const stage = STAGES[currentStageIndex]; if (!stage) return;
+      timers.push(setTimeout(() => setShowAd(true), baseDelay));
+      timers.push(setTimeout(() => setIsMadness(true), baseDelay + 2000));
+      return () => timers.forEach(clearTimeout);
+    }
+  }, [gameState, currentStageIndex]);
+
+  React.useEffect(() => {
+    if (gameState === 'playing' && STAGES[currentStageIndex]?.id === 13 && showAd && !adStageState.isClearing) {
+      const interval = setInterval(() => {
+        setAdStageState(prev => {
+          if (prev.showRealClose || prev.isFiring || (prev.enemyPhase === 1 && prev.enemyHit) || prev.enemy2Hit) return prev;
+          const period = prev.enemyPhase === 1 ? 4000 : 1200; const amplitude = prev.enemyPhase === 1 ? 35 : 45; 
+          return { ...prev, enemyX: 50 + (Math.abs((Date.now() % period) / period * 4 - 2) - 1) * amplitude };
+        });
+      }, 30);
+      return () => clearInterval(interval);
+    }
+  }, [gameState, currentStageIndex, showAd, adStageState.isClearing]);
+
+  const handleDragStart = (e) => {
+    e.stopPropagation(); setAdStageState(prev => ({ ...prev, isDragging: true }));
+    const cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
+    dragStartRef.current = { x: cx - adStageState.dragPos.x, y: cy - adStageState.dragPos.y }; clickStartRef.current = { x: cx, y: cy };
+  };
+  const handleDragMove = (e) => {
+    if (!adStageState.isDragging) return; e.stopPropagation();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
+    setAdStageState(prev => ({ ...prev, dragPos: { x: cx - dragStartRef.current.x, y: cy - dragStartRef.current.y } }));
+  };
+  const handleDragEnd = (e) => { if(e) e.stopPropagation(); setAdStageState(prev => ({ ...prev, isDragging: false })); };
+
+  // ドラッグ release の取りこぼし対策（document レベルでも捕捉）
+  React.useEffect(() => {
+    if (!adStageState.isDragging) return;
+    const onUp = () => setAdStageState(prev => ({ ...prev, isDragging: false }));
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchend', onUp);
+    document.addEventListener('touchcancel', onUp);
+    return () => {
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchend', onUp);
+      document.removeEventListener('touchcancel', onUp);
+    };
+  }, [adStageState.isDragging]);
+
+  const handleCaptchaCheckboxHover = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setAdStageState(prev => ({ ...prev, captchaCheckboxHovered: prev.captchaCheckboxHovered + 1 }));
+  };
+
+  const handleFakeLogin = (e) => {
+    e.stopPropagation();
+    if (adStageState.loginTries === 0) setAdStageState(prev => ({ ...prev, loginTries: 1 }));
+    else handleTrapClick(e);
+  };
+
+  const fireBullet = (e) => {
+    e.stopPropagation();
+    if (adStageState.isFiring || adStageState.showRealClose || adStageState.ammo <= 0) return;
+    setAdStageState(prev => ({ ...prev, isFiring: true, ammo: prev.ammo - 1 }));
+    setTimeout(() => {
+      setAdStageState(curr => {
+        let isHit = Math.abs(50 - curr.enemyX) < 8; let nextState = { ...curr, isFiring: false };
+        if (isHit) {
+          if (curr.enemyPhase === 1) { nextState.enemyHit = true; setTimeout(() => { setAdStageState(p => ({ ...p, enemyPhase: 2, enemyHit: false, enemyX: 10 })); }, 1000); } 
+          else if (curr.enemyPhase === 2) { nextState.enemy2Hit = true; setTimeout(() => { setAdStageState(p => ({ ...p, showRealClose: true })); }, 800); }
+        }
+        // 修正: 弾切れでも命中していればゲームオーバー回避（フェーズ進行を許可）
+        if (!isHit && nextState.ammo <= 0 && !nextState.enemy2Hit) setTimeout(() => { handleTrapClick(e); }, 1000);
+        return nextState;
+      });
+    }, 300);
+  };
+
+  const handleShareClick = (e) => {
+    e.stopPropagation();
+    if(adStageState.isClearing) return;
+    setAdStageState(prev => ({ ...prev, showShareWarning: true }));
+    // 4秒後にシェア警告を消し、浄化フラッシュ→次ステージへ
+    setTimeout(() => {
+      setAdStageState(prev => ({ ...prev, showShareWarning: false }));
+      handleCorrectClose();
+    }, 4000);
+  };
+
+  const currentStage = STAGES[currentStageIndex];
+
+  const renderContent = () => {
+    const content = (isMadness && currentStage.contentCorrupted) ? currentStage.contentCorrupted : currentStage.contentNormal;
+    if (!content) return null;
+    const imagesObj = (isMadness && currentStage.inlineImages?.corrupted) ? currentStage.inlineImages.corrupted : currentStage.inlineImages?.normal;
+    return content.split(/\\n\\n|\n\n/).map((para, i) => (
+      <React.Fragment key={i}>
+        <p className="whitespace-pre-wrap break-words">{para.replace(/\\n/g, '\n')}</p>
+        {imagesObj && imagesObj[i+1] && (
+          <div className="w-full aspect-video my-6 border border-gray-300 shadow-md p-1 bg-white overflow-hidden relative">
+            <img src={imagesObj[i+1]} className={`w-full h-full object-cover ${isMadness ? 'filter brightness-75 contrast-125 saturate-150' : ''}`} alt="visual" />
+            {isMadness && <div className="absolute inset-0 bg-red-900/20 mix-blend-multiply pointer-events-none"></div>}
+          </div>
+        )}
+      </React.Fragment>
+    ));
+  };
+
+  const renderFooterBar = (isDark = false) => {
+    const sInt = interactions[currentStageIndex] || { liked: false, commentsOpen: false };
+    const comments = isMadness ? currentStage.commentsData?.corrupted : currentStage.commentsData?.normal;
+    return (
+      <div className="mt-8 border-t border-gray-200/50 pt-6 w-full">
+        <div className="flex flex-wrap justify-center gap-2 md:gap-4">
+          <div onClick={(e)=>{e.stopPropagation(); setInteractions(p=>({...p, [currentStageIndex]: {...sInt, liked: !sInt.liked}}));}} className={`flex items-center gap-2 text-sm font-bold py-3 px-6 rounded-full shadow cursor-pointer shrink-0 ${sInt.liked ? 'bg-pink-500 text-white' : isDark ? 'bg-[#333] text-gray-300' : 'bg-white border border-gray-300 text-gray-700'}`}>
+            <span className={sInt.liked ? 'animate-bounce' : ''}>{sInt.liked ? '❤️' : '♡'}</span> いいね {(currentStage.meta.likes + (sInt.liked?1:0)).toLocaleString()}
+          </div>
+          <div onClick={(e)=>{e.stopPropagation(); setInteractions(p=>({...p, [currentStageIndex]: {...sInt, commentsOpen: !sInt.commentsOpen}}));}} className={`flex items-center gap-2 text-sm font-bold py-3 px-6 rounded-full shadow-sm cursor-pointer shrink-0 ${isDark ? 'bg-[#333] text-gray-300' : 'bg-white border border-gray-300 text-gray-700'}`}>
+            💬 コメント {currentStage.meta.comments} {sInt.commentsOpen ? '▲' : '▼'}
+          </div>
+        </div>
+        {sInt.commentsOpen && comments?.length > 0 && (
+          <div className={`mt-6 p-4 rounded-xl shadow-inner ${isDark ? 'bg-[#1a1a1a] border border-[#333]' : 'bg-gray-50 border border-gray-200'}`}>
+            <div className="space-y-4">
+              {comments.map((c, i) => (
+                <div key={i} className={`p-3 rounded-lg ${isMadness ? 'bg-red-950/30' : isDark ? 'bg-[#222]' : 'bg-white shadow-sm'}`}>
+                  <div className={`text-xs font-bold mb-1 ${isMadness ? 'text-red-500' : isDark ? 'text-blue-400' : 'text-blue-600'}`}>{c.name}</div>
+                  <div className={`text-sm ${isMadness ? 'text-red-400 font-bold glitch-text' : isDark ? 'text-gray-300' : 'text-gray-800'}`}>{c.text}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderLayout = () => {
+    if (!currentStage) return null; const t = currentStage.layoutType, c = currentStage;
+    const isM = isMadness; const img = isM ? c.imageCorrupted : c.imageNormal; const title = c.introTitle.split(/\\n|\n/).map((l,i)=><React.Fragment key={i}>{l}<br/></React.Fragment>);
+    
+    if (t === 'hacker') return (
+      <div className="w-full bg-black font-gothic text-[#22c55e] pb-20">
+        <header className="border-b border-[#22c55e]/50 sticky top-0 z-30 bg-black">
+          <div className="flex justify-between items-center px-3 py-2">
+            <div>
+              <div className="text-[8px] text-green-700 tracking-widest">[ CLASSIFIED ]</div>
+              <div className="text-sm font-black tracking-widest">{c.siteTitle}</div>
+            </div>
+            <div className="text-[10px] flex gap-2 items-center">
+              <span className="animate-pulse text-red-500">●REC</span>
+              <span className="text-green-600">192.168.x.x</span>
+            </div>
+          </div>
+          <nav className="flex border-t border-[#22c55e]/30 text-[10px] bg-black">
+            {['LOG','EVIDENCE','ARCHIVE','CONTACT','DEEP-WEB'].map((t,i)=>(<div key={i} className="px-2 py-1.5 hover:bg-[#22c55e]/10 cursor-pointer flex-1 text-center border-r border-[#22c55e]/20 last:border-0 text-green-400 font-bold">{t}</div>))}
+          </nav>
+        </header>
+        <div className="bg-red-950/50 border-y border-red-900 text-red-400 text-[10px] px-3 py-1.5 font-mono animate-pulse">
+          ⚠ DETECTION_LEVEL: HIGH | 監視されている可能性
+        </div>
+        <div className="p-4">
+          <div className="border border-[#22c55e] p-4 relative shadow-[0_0_15px_rgba(34,197,94,0.2)] bg-black/80">
+            <h2 className="text-lg font-bold mb-3 border-b border-[#22c55e]/50 pb-2">{title}</h2>
+            <div className="text-[10px] text-green-700 mb-4 font-mono">[POSTED] 2026/03/18 23:47:02 | 投稿者: NoName</div>
+            <div className="mb-4 w-full aspect-video border border-[#22c55e]/30 p-1"><img src={img} className={`w-full h-full object-cover ${!isM?'grayscale opacity-50':'filter contrast-200 saturate-200'}`} alt="hero"/></div>
+            <div className={`text-[14px] leading-[2] space-y-4 ${isM?'text-red-500 font-bold glitch-text':''}`}>{renderContent()}</div>
+            
+            <div className="mt-6 border border-red-900/50 p-3 bg-red-950/20">
+              <div className="text-[10px] text-red-400 font-bold mb-1">📡 計測データ</div>
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div className="bg-black/50 p-2 border border-red-900/30"><span className="text-red-400">電磁波強度:</span><br/><span className="text-yellow-300 font-mono">874 μT</span></div>
+                <div className="bg-black/50 p-2 border border-red-900/30"><span className="text-red-400">監視機器数:</span><br/><span className="text-yellow-300 font-mono">12 台</span></div>
+              </div>
+            </div>
+            
+            <div className="mt-4 flex flex-wrap gap-1">
+              {['#真実','#目覚めよ','#陰謀','#監視社会','#組織'].map((t,i)=>(<span key={i} className="text-[10px] text-green-400 bg-green-950/30 border border-green-900 px-2 py-0.5 rounded cursor-pointer hover:bg-green-900/40">{t}</span>))}
+            </div>
+            
+            <div className="mt-8">{renderFooterBar(true)}</div>
+          </div>
+        </div>
+      </div>
+    );
+    if (t === 'cafe') return (
+      <div className="w-full bg-[#2c2017] font-shippori text-[#d4b595] pb-20">
+        <header className="bg-[#1a110a] border-b border-[#4a3623] sticky top-0 z-30 shadow-lg">
+          <div className="flex justify-between items-center px-4 py-3">
+            <div className="leading-tight">
+              <div className="text-[8px] text-amber-700 tracking-widest">深夜営業 / Antique Books</div>
+              <div className="text-base md:text-xl font-black" style={{wordBreak:'keep-all'}}>{c.siteTitle}</div>
+            </div>
+            <div className="text-[10px] text-amber-700 border border-amber-900 px-2 py-1">予約</div>
+          </div>
+          <nav className="flex border-t border-[#4a3623] text-[10px] font-bold bg-[#15090a] text-amber-700">
+            {['SHOP','MENU','BOOKS','EVENT','ACCESS'].map((t,i)=>(<div key={i} className="px-2 py-1.5 hover:bg-[#4a3623]/40 cursor-pointer flex-1 text-center border-r border-[#3a2613] last:border-0">{t}</div>))}
+          </nav>
+        </header>
+        <div className="bg-amber-950/40 text-amber-300 text-[10px] py-1.5 px-3 text-center border-b border-amber-900/50 font-shippori">
+          ✦ 営業時間: 22:00〜夜明けまで ✦
+        </div>
+        <div className="px-5 max-w-2xl mx-auto mt-6">
+          <h2 className={`text-center text-xl md:text-2xl font-bold mb-6 leading-loose ${isM?'text-red-700':''}`}>{title}</h2>
+          
+          <div className="grid grid-cols-3 gap-2 mb-6">
+            {[{icon:'☕',label:'コーヒー',sub:'¥800〜'},{icon:'📚',label:'蔵書',sub:'2,400冊'},{icon:'🪑',label:'席数',sub:'12席'}].map((d,i)=>(
+              <div key={i} className="bg-[#1a110a] border border-[#4a3623] rounded p-2 text-center">
+                <div className="text-2xl mb-0.5">{d.icon}</div>
+                <div className="text-[10px] text-amber-700 font-bold">{d.label}</div>
+                <div className="text-xs text-amber-300">{d.sub}</div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="w-full bg-[#1a110a] p-3 shadow mb-8"><img src={img} className="w-full aspect-video object-cover opacity-80" alt="hero"/></div>
+          <div className={`text-[15px] md:text-[16px] leading-[2.4] space-y-6 ${isM?'text-red-800 font-bold':''}`}>{renderContent()}</div>
+          
+          <h3 className="text-base font-bold border-b border-amber-900 pb-2 mt-8 mb-3 text-amber-300 tracking-widest">— 本日のおすすめ —</h3>
+          <div className="space-y-2 mb-6">
+            {[{name:'マンデリン・ガヨ',price:'¥980',note:'深煎り・強コク'},{name:'手作りガトーショコラ',price:'¥680',note:'夜限定'},{name:'禁書セット',price:'問合せ',note:'店主推薦'}].map((m,i)=>(
+              <div key={i} className="flex items-center justify-between bg-[#1a110a] border border-amber-900/50 p-2.5 rounded">
+                <div><div className="text-sm font-bold text-amber-200">{m.name}</div><div className="text-[10px] text-amber-700">{m.note}</div></div>
+                <div className="text-amber-300 font-black text-sm">{m.price}</div>
+              </div>
+            ))}
+          </div>
+          
+          {renderFooterBar(true)}
+        </div>
+      </div>
+    );
+    if (t === 'gov') return (
+      <div className="w-full bg-[#f8fafc] font-sans text-gray-800 pb-20">
+        <header className="bg-[#0369a1] text-white sticky top-0 z-30 shadow-md">
+          <div className="px-3 py-2 flex items-center justify-between">
+            <div className="leading-tight">
+              <div className="text-[8px] tracking-widest opacity-80">国立 厚生労働省 認可</div>
+              <div className="text-sm font-bold">国立機関サイト</div>
+            </div>
+            <div className="text-[10px] bg-white/20 px-2 py-1 rounded">English</div>
+          </div>
+          <nav className="flex border-t border-blue-700 text-[10px] font-bold bg-[#075985]">
+            {['事業概要','施設案内','入園手続','広報誌','よくあるご質問'].map((t,i)=>(<div key={i} className="px-1 py-1.5 hover:bg-blue-900 cursor-pointer flex-1 text-center border-r border-blue-700 last:border-0">{t}</div>))}
+          </nav>
+        </header>
+        <div className="bg-[#e0f2fe] p-4 shadow-inner border-b border-blue-200">
+          <h1 className="text-lg md:text-xl font-black text-[#0369a1]" style={{wordBreak:'keep-all'}}>{c.siteTitle}</h1>
+          <div className="text-[10px] text-blue-700 font-bold mt-1 tracking-widest">少年少女の更生・自立支援を行っております</div>
+        </div>
+        <div className="bg-yellow-50 border-y border-yellow-300 text-yellow-900 text-[10px] py-1.5 px-3 font-bold">
+          📣 重要: 令和8年度入園生募集中（〜5月末日）
+        </div>
+        <div className="p-3">
+          <main className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <h2 className={`text-lg md:text-xl font-bold border-l-4 pl-3 mb-4 ${isM?'text-red-800 border-red-800':'text-gray-900 border-[#0369a1]'}`}>{title}</h2>
+            
+            <div className="grid grid-cols-3 gap-2 mb-5">
+              {[{label:'入園生数',val:'128名',sub:'2026年4月現在'},{label:'更生率',val:'94%',sub:'過去5年平均'},{label:'就職率',val:'89%',sub:'退園後1年'}].map((d,i)=>(
+                <div key={i} className="bg-blue-50 border border-blue-200 rounded p-2 text-center">
+                  <div className="text-[9px] text-blue-700 font-bold">{d.label}</div>
+                  <div className="text-base font-black text-[#0369a1]">{d.val}</div>
+                  <div className="text-[8px] text-gray-500">{d.sub}</div>
+                </div>
+              ))}
+            </div>
+            
+            <img src={img} className="w-full aspect-video object-cover mb-5 rounded" alt="hero"/>
+            <div className={`text-[14px] md:text-[15px] leading-[2.2] space-y-5 ${isM?'text-red-800 font-bold bg-red-50 p-5':''}`}>{renderContent()}</div>
+            
+            <h3 className="text-sm font-bold text-[#0369a1] border-b border-gray-200 pb-2 mt-8 mb-3">プログラム内容</h3>
+            <div className="grid grid-cols-2 gap-2 mb-6 text-[11px]">
+              {[{icon:'🌾',name:'農作業',desc:'自然豊かな環境で'},{icon:'📚',name:'学習指導',desc:'認可教員による'},{icon:'💼',name:'職業訓練',desc:'資格取得サポート'},{icon:'🧠',name:'心理ケア',desc:'専門カウンセラー'}].map((p,i)=>(
+                <div key={i} className="bg-white border border-blue-100 rounded p-2"><div className="flex items-center gap-1.5"><span>{p.icon}</span><span className="font-bold text-gray-800">{p.name}</span></div><div className="text-[9px] text-gray-500 mt-0.5">{p.desc}</div></div>
+              ))}
+            </div>
+            
+            <h3 className="text-sm font-bold text-[#0369a1] border-b border-gray-200 pb-2 mt-6 mb-3">お知らせ</h3>
+            <ul className="space-y-1 mb-6 text-[11px]">
+              {[{date:'2026/04/15',title:'令和8年度入園生募集開始'},{date:'2026/04/01',title:'保護者向け説明会のお知らせ'},{date:'2026/03/22',title:'卒園生を対象としたアフターケア'}].map((n,i)=>(
+                <li key={i} className="flex gap-2 py-1 border-b border-gray-100">
+                  <span className="text-gray-500 font-bold whitespace-nowrap text-[10px]">{n.date}</span>
+                  <span className="text-gray-800 hover:text-blue-700 cursor-pointer">{n.title}</span>
+                </li>
+              ))}
+            </ul>
+            
+            {renderFooterBar(false)}
+          </main>
+        </div>
+      </div>
+    );
+    if (t === 'industrial') return (
+      <div className="w-full bg-[#1c1917] font-sans text-gray-300 pb-24">
+        <header className="bg-yellow-500 border-b-4 border-black sticky top-0 z-30 shadow-lg">
+          <div className="px-3 py-2 flex items-center justify-between">
+            <div className="leading-tight">
+              <div className="text-[9px] tracking-widest text-amber-900 font-bold">産業廃棄物処理業 / 即日対応</div>
+              <div className="text-base md:text-lg font-black text-black" style={{wordBreak:'keep-all'}}>⚠️ {c.siteTitle}</div>
+            </div>
+            <div className="text-[10px] bg-black text-yellow-400 px-2 py-1 font-black">📞 24h</div>
+          </div>
+          <nav className="flex border-t border-yellow-700 text-[10px] font-black bg-yellow-600 text-amber-950">
+            {['HOME','業務内容','料金','実績','お問合せ'].map((t,i)=>(<div key={i} className="px-2 py-1.5 hover:bg-yellow-700 cursor-pointer flex-1 text-center border-r border-yellow-700 last:border-0">{t}</div>))}
+          </nav>
+        </header>
+        <div className="bg-red-700 text-white text-[10px] py-1.5 px-3 text-center font-bold animate-pulse">
+          🔥 緊急回収・即日対応！どんなものでも引き取ります
+        </div>
+        <div className="px-4 mt-6">
+          <h2 className={`text-center text-xl md:text-2xl font-black mb-6 ${isM?'text-red-500':'text-white'}`}>{title}</h2>
+          
+          <div className="grid grid-cols-3 gap-1.5 mb-6">
+            {[{label:'処理実績',val:'12,847件',sub:'年間'},{label:'対応エリア',val:'全国',sub:'24時間'},{label:'保有車両',val:'48台',sub:'24h稼働'}].map((d,i)=>(
+              <div key={i} className="bg-yellow-500/10 border border-yellow-700 rounded p-2 text-center">
+                <div className="text-[9px] text-yellow-500 font-bold">{d.label}</div>
+                <div className="text-base font-black text-yellow-300">{d.val}</div>
+                <div className="text-[8px] text-yellow-700">{d.sub}</div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="bg-[#292524] p-3 shadow mb-6"><img src={img} className={`w-full aspect-video object-cover ${isM?'filter contrast-150':'grayscale opacity-80'}`} alt="hero"/></div>
+          <div className={`text-[14px] leading-[2.2] space-y-6 ${isM?'text-red-500 font-bold':''}`}>{renderContent()}</div>
+          
+          <h3 className="text-base font-black text-yellow-400 border-l-4 border-yellow-500 pl-2 mt-8 mb-3">取扱品目</h3>
+          <div className="grid grid-cols-2 gap-2 mb-6">
+            {[{icon:'🛋️',name:'家具・家電'},{icon:'📦',name:'引越荷物'},{icon:'🏭',name:'産業廃棄物'},{icon:'❓',name:'その他なんでも'}].map((p,i)=>(
+              <div key={i} className="bg-[#292524] border border-yellow-900 rounded p-2 flex items-center gap-2"><span className="text-xl">{p.icon}</span><span className="text-xs font-bold text-yellow-300">{p.name}</span></div>
+            ))}
+          </div>
+          
+          <h3 className="text-base font-black text-yellow-400 border-l-4 border-yellow-500 pl-2 mt-6 mb-3">料金一覧</h3>
+          <table className="w-full text-[11px] border-collapse mb-6 bg-[#292524]">
+            <thead><tr className="bg-yellow-700 text-black">
+              <th className="p-2 border border-yellow-900">プラン</th><th className="p-2 border border-yellow-900">価格</th><th className="p-2 border border-yellow-900">備考</th>
+            </tr></thead>
+            <tbody>
+              {[{p:'軽トラック1台',v:'¥9,800〜',n:'家具数点'},{p:'2tトラック1台',v:'¥29,800〜',n:'引越し対応'},{p:'特殊処理',v:'要見積',n:'ご相談ください'}].map((r,i)=>(
+                <tr key={i}><td className="p-2 border border-yellow-900/50 text-yellow-300 font-bold">{r.p}</td><td className="p-2 border border-yellow-900/50 text-yellow-200 font-black">{r.v}</td><td className="p-2 border border-yellow-900/50 text-gray-400 text-[10px]">{r.n}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          
+          <div className="bg-gradient-to-r from-yellow-700 to-yellow-500 rounded p-3 text-center mb-6 border-2 border-yellow-300">
+            <p className="text-[10px] text-amber-900 font-bold tracking-widest mb-1">無料見積もり受付中</p>
+            <p className="text-base font-black text-black">📞 0120-XX-XXXX (24時間365日)</p>
+          </div>
+          
+          {renderFooterBar(true)}
+        </div>
+      </div>
+    );
+    if (t === 'missing') return (
+      <div className="w-full bg-[#e5e5e5] flex flex-col items-center pb-20 font-sans">
+        <header className="w-full bg-blue-800 text-white sticky top-0 z-30 shadow-md">
+          <div className="text-center py-2 px-3">
+            <div className="text-[9px] opacity-80 tracking-widest">緊急情報提供サイト</div>
+            <div className="font-black text-base">🚨 情報提供のお願い 🚨</div>
+          </div>
+          <nav className="flex border-t border-blue-700 text-[10px] font-bold bg-blue-900">
+            {['HOME','尋ね人一覧','解決事例','情報提供','警察連絡先'].map((t,i)=>(<div key={i} className="px-2 py-1.5 hover:bg-blue-950 cursor-pointer flex-1 text-center border-r border-blue-700 last:border-0">{t}</div>))}
+          </nav>
+        </header>
+        <div className="bg-red-700 text-white text-[10px] py-1.5 px-3 w-full text-center font-bold animate-pulse">
+          ⚠️ 些細な情報でも結構です。皆様のご協力をお願い致します
+        </div>
+        <div className="p-3 w-full">
+          <div className={`bg-white p-4 shadow-lg border ${isM?'border-red-800 bg-red-50':''}`}>
+            {isM?<div className="text-center text-2xl font-black text-red-600 mb-4">発見報告</div>:<div className="text-center text-2xl font-black mb-4 tracking-widest">尋 ね 人</div>}
+            
+            <div className="grid grid-cols-2 gap-2 mb-4 text-[10px]">
+              <div className="bg-blue-50 border border-blue-200 rounded p-2"><span className="text-blue-700 font-bold">登録番号:</span><br/><span className="font-black">No. 9817-0318</span></div>
+              <div className="bg-red-50 border border-red-200 rounded p-2"><span className="text-red-700 font-bold">経過日数:</span><br/><span className="font-black text-red-600">68日</span></div>
+            </div>
+            
+            <div className="w-full aspect-[3/4] bg-gray-200 mb-4 border-4 border-white shadow-md"><img src={img} className="w-full h-full object-cover grayscale" alt="hero"/></div>
+            <div className={`text-[14px] space-y-3 font-bold ${isM?'text-red-900':''}`}>{renderContent()}</div>
+            
+            <h3 className="text-base font-black text-blue-900 border-l-4 border-blue-700 pl-2 mt-6 mb-3">目撃情報</h3>
+            <div className="space-y-2 mb-4 text-[11px]">
+              {[{date:'2026/03/15',loc:'S県T総合病院 跡地付近',src:'防犯カメラ'},{date:'2026/03/15',loc:'国道沿いコンビニ',src:'店員証言'},{date:'2026/03/14',loc:'最寄り駅改札',src:'改札カメラ'}].map((s,i)=>(
+                <div key={i} className="bg-gray-50 border border-gray-200 rounded p-2">
+                  <div className="flex items-center justify-between"><span className="font-bold text-gray-800">📍 {s.loc}</span><span className="text-[9px] text-gray-500">{s.date}</span></div>
+                  <div className="text-[10px] text-gray-500 mt-0.5">情報源: {s.src}</div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="bg-yellow-100 border-2 border-yellow-500 rounded p-3 text-center mb-4">
+              <p className="text-[10px] text-yellow-900 font-bold mb-1">情報提供の方へ</p>
+              <p className="text-base font-black text-yellow-900">📞 0120-XX-XXXX</p>
+              <p className="text-[9px] text-yellow-700 mt-1">24時間受付・匿名OK・謝礼あり</p>
+            </div>
+            
+            {renderFooterBar(false)}
+          </div>
+        </div>
+      </div>
+    );
+    return null; 
+  };
+
+  return (
+    <div className="fixed inset-0 bg-[#0a0a0a] flex items-center justify-center">
+      <div className="w-full h-[100dvh] md:max-w-[400px] md:max-h-[850px] bg-black overflow-hidden relative select-none flex flex-col font-sans text-gray-900" onMouseMove={handleDragMove} onMouseUp={handleDragEnd} onTouchMove={handleDragMove} onTouchEnd={handleDragEnd}>
+        <style dangerouslySetInnerHTML={{__html: `
+          @import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Noto+Serif+JP:wght@400;700;900&family=Shippori+Mincho:wght@400;700;800&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap');
+          .font-serif { font-family: 'Noto Serif JP', serif; } .font-sans { font-family: 'Zen Kaku Gothic New', sans-serif; } .font-gothic { font-family: 'DotGothic16', sans-serif; } .font-shippori { font-family: 'Shippori Mincho', serif; }
+          @keyframes shake { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 25% { transform: translate(-1.5px, 1px) rotate(-0.3deg); } 50% { transform: translate(1.5px, -1px) rotate(0.3deg); } 75% { transform: translate(-1px, -1.5px) rotate(-0.2deg); } }
+          .animate-shake { animation: shake 0.25s infinite; } .glitch-text { letter-spacing: -3px; text-shadow: 3px 0 red, -3px 0 blue; font-weight: 900; }
+          .crt-flicker { animation: crt 0.15s infinite; } @keyframes crt { 0% { opacity: 0.95; } 100% { opacity: 1; } }
+          .noise-overlay { background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noise-shift 0.1s infinite; }
+          @keyframes noise-shift { 0%, 100% { background-position: 0 0; } 25% { background-position: -5% -10%; } 50% { background-position: -15% 5%; } 75% { background-position: 10% 15%; } }
+          .glitch-lines { background: repeating-linear-gradient(transparent, transparent 2px, rgba(255, 0, 0, 0.4) 3px, rgba(0, 0, 255, 0.4) 4px); animation: move-lines 0.2s infinite linear; }
+          @keyframes move-lines { 0% { transform: translateY(0); } 100% { transform: translateY(10px); } }
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } } .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+          @keyframes clearFlash { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+          .clear-flash-overlay { animation: clearFlash 0.9s ease-out forwards; pointer-events: none; }
+          .laser-beam { width: 6px; background: #ff0000; position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); height: 20px; border-radius: 10px; box-shadow: 0 0 10px #ff0000; display: none; }
+          .firing .laser-beam { display: block; animation: shoot 0.3s linear forwards; } @keyframes shoot { 0% { bottom: 50px; } 100% { bottom: 85%; } }
+          .scrollbar-hide::-webkit-scrollbar { display: none; } .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        `}} />
+
+        {transition.active && (
+          <div className="absolute inset-0 z-[200] pointer-events-auto overflow-hidden"><div className={`absolute inset-0 bg-black transition-opacity duration-[800ms] ${transition.state === 'out' ? 'opacity-100' : 'opacity-0'}`}></div>
+            {transition.type === 'noise' && transition.state === 'out' && <div className="absolute inset-0 noise-overlay opacity-60 mix-blend-screen"></div>}
+            {transition.type === 'glitch' && transition.state === 'out' && <><div className="absolute inset-0 bg-red-800 mix-blend-multiply opacity-90 animate-ping"></div><div className="absolute inset-0 glitch-lines opacity-40"></div></>}
+          </div>
+        )}
+        {penaltyActive && <div className="absolute inset-0 z-[100] bg-red-600/60 mix-blend-color-burn pointer-events-none"></div>}
+
+        {/* 装置2: 呪い蓄積メーター */}
+        {(gameState === 'playing' || gameState === 'intro') && currentStage && (
+          <div className="absolute bottom-[64px] right-2 z-[35] pointer-events-none select-none">
+            <div className="relative w-2 h-20 bg-black/80 border border-red-900/80 rounded-sm overflow-hidden shadow-[0_0_4px_rgba(0,0,0,0.8)]">
+              <div className="absolute bottom-0 left-0 right-0 transition-all duration-[1500ms] ease-out bg-gradient-to-t from-red-900 via-red-600 to-red-400" style={{ height: `${curseLevel}%` }}></div>
+              {curseLevel >= 50 && <div className="absolute inset-0 bg-red-500/30 animate-pulse"></div>}
+            </div>
+            {curseLevel >= 80 && (
+              <>
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1 w-0.5 h-2 bg-red-700 rounded-b-full animate-bounce" style={{animationDuration: '1.4s'}}></div>
+                <div className="absolute -bottom-3 left-1/2 -translate-x-0.5 translate-x-1 w-0.5 h-1.5 bg-red-800 rounded-b-full animate-bounce" style={{animationDuration: '1.7s', animationDelay: '0.3s'}}></div>
+              </>
+            )}
+          </div>
+        )}
+
+
+        {/* 装置3強化: タタリン社からの業務進捗報告（マイルストーン伏線開示） */}
+        {tatarinReport && (
+          <div className="absolute inset-0 z-[175] bg-black/95 flex flex-col items-center justify-center p-6 animate-fade-in cursor-pointer" onClick={handleTatarinReportSkip}>
+            <div className="max-w-md w-full bg-gray-900 border border-gray-700 p-6 rounded shadow-[0_0_30px_rgba(0,0,0,0.8)] text-left">
+              <div className="flex items-center gap-2 border-b border-gray-700 pb-3 mb-4 font-mono text-xs">
+                <span className="text-yellow-500">●</span>
+                <span className="text-gray-400">tatarin-system.jp / 業務進捗報告</span>
+              </div>
+              <p className="text-gray-100 text-base font-bold mb-3">業務進捗 {tatarinReport.progress} 件 完了</p>
+              <p className="text-gray-200 text-sm leading-relaxed mb-4 whitespace-pre-line">{tatarinReport.main}</p>
+              <p className="text-gray-400 text-xs leading-relaxed border-t border-gray-700 pt-3 whitespace-pre-line">{tatarinReport.note}</p>
+              <div className="mt-4 text-right text-xs text-gray-500">㈱タタリン 業務管理部</div>
+            </div>
+            <div className="mt-6 text-center text-xs text-gray-600 animate-pulse">▼ タップで次のステージへ ▼</div>
+          </div>
+        )}
+
+        {/* ステージクリア浄化フラッシュ演出 */}
+        {showClearFlash && (
+          <>
+            <div className="absolute inset-0 z-[170] clear-flash-overlay" style={{
+              background: 'radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(200,255,220,0.7) 40%, rgba(180,220,255,0.4) 70%, transparent 100%)'
+            }}></div>
+            <div className="absolute inset-0 z-[171] flex items-center justify-center pointer-events-none clear-flash-overlay">
+              <h2 className="text-4xl md:text-6xl font-black text-blue-700 drop-shadow-[0_0_25px_white] tracking-widest text-center px-4" style={{wordBreak:'keep-all'}}>{currentStage?.clearMessage || "浄化"}</h2>
+            </div>
+          </>
+        )}
+        
+        {gameState === 'playing' && adStageState.showShareWarning && (
+          <div className="absolute inset-0 bg-black/95 flex items-center justify-center z-[250] animate-fade-in p-6 text-center">
+            <div><h3 className="text-red-600 text-3xl font-black mb-6 animate-pulse">シェア完了</h3><p className="text-gray-300 text-base font-bold border-t border-b border-red-900 py-6">あなたの端末の連絡先に登録されている皆様へ、<br/>あなたの『個人情報』を送信しました。<br/><br/>さようなら。</p></div>
+          </div>
+        )}
+
+        <div className="w-full flex-grow min-h-0 relative overflow-hidden flex flex-col bg-black">
+          {gameState === 'splash' && (
+            <div
+              onClick={() => doTransition('fade', () => setGameState('title'))}
+              className="absolute inset-0 z-[400] bg-[#0a0a0a] flex flex-col items-center justify-center cursor-pointer overflow-hidden"
+              style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0)', backgroundSize: '8px 8px' }}
+            >
+              <div className="text-center px-4 w-full">
+                <p className="text-[9px] md:text-[10px] tracking-[0.4em] text-red-500/70 mb-4 font-light">A GAME BY</p>
+                <h1
+                  className="text-2xl md:text-4xl font-serif text-red-400 mb-4 leading-tight whitespace-nowrap"
+                  style={{ textShadow: '0 0 20px rgba(255,80,100,0.8), 0 0 40px rgba(255,80,100,0.5), 0 0 60px rgba(255,80,100,0.3)', letterSpacing: '0.01em' }}
+                >
+                  Bocchi-Bochi-Games
+                </h1>
+                <div className="w-[60%] h-[2px] bg-red-500 mx-auto mb-3 shadow-[0_0_10px_rgba(255,80,100,0.6)]"></div>
+                <div className="w-[40%] h-[1px] bg-gray-700 mx-auto mb-3"></div>
+                <p className="text-[8px] md:text-[10px] tracking-[0.3em] text-red-500/60 animate-pulse">
+                  SYSTEM READY. TAP TO START.
+                </p>
+              </div>
+            </div>
+          )}
+          {gameState === 'title' && (
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-yellow-400 p-4 text-center">
+              <div className="absolute inset-0 w-full h-full bg-cover bg-center opacity-85" style={{ backgroundImage: `url('${FALLBACK_IMAGES.titleBg}')` }}></div>
+              {/* 装置1: タイトルクレジット */}
+              <div className="absolute bottom-2 left-0 right-0 text-center text-[8px] text-gray-800 opacity-40 z-20 pointer-events-none tracking-tighter">※業務委託元: ㈱タタリン（特例業法 第3条）</div>
+              <div className="relative z-10 bg-white p-8 border-[10px] border-dashed border-red-600 rounded-2xl transform -rotate-3 w-full max-w-[95%] animate-pulse">
+                <div className="absolute -top-4 -right-4 bg-red-600 text-white font-black text-sm py-2 px-8 transform rotate-12">極秘案件</div>
+                <div className="mb-4 -mx-2 overflow-hidden rounded-lg border-4 border-yellow-300 shadow-lg">
+                  <img src={FALLBACK_IMAGES.titleBg} className="w-full h-32 md:h-44 object-cover" alt="副業体験者の女性たち"/>
+                  <div className="bg-gradient-to-r from-pink-500 via-red-600 to-pink-500 text-white text-[10px] md:text-xs font-black py-1 tracking-widest animate-pulse">
+                    ★ 体験者9,247人が高収入を実現！ ★
+                  </div>
+                </div>
+                <h1 className="text-3xl md:text-4xl font-black mb-6 text-red-600 leading-tight"><span className="inline-block whitespace-nowrap">【即日即金】</span><br/><span className="inline-block whitespace-nowrap">ウザい広告を</span><br/><span className="inline-block whitespace-nowrap">消すだけ！？</span></h1>
+                <p className="text-lg font-bold text-black mb-4 bg-yellow-200 p-2 rounded">スマホ1台で簡単高収入！</p>
+                <button onClick={startGame} className="bg-gradient-to-b from-yellow-300 to-orange-600 border-4 border-black font-black py-5 px-6 rounded-full text-2xl w-full">今すぐアクセス！</button>
+              </div>
+            </div>
+          )}
+          {gameState === 'intro' && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black text-white p-6 text-center">
+              <div><div className="text-red-600 font-bold tracking-widest mb-4 text-sm">CASE {currentStageIndex + 11}</div><h2 className="text-xl font-serif tracking-[0.3em] animate-pulse leading-[2.5]">{currentStage?.introTitle.split('\n').map((l,i)=><React.Fragment key={i}><span className="inline-block whitespace-nowrap" style={{wordBreak:'keep-all'}}>{l}</span><br/></React.Fragment>)}</h2></div>
+            </div>
+          )}
+          {gameState === 'gameover-popup' && (
+            <div className="absolute inset-0 z-[150] flex flex-col items-center justify-center bg-black/70 p-4 animate-fade-in">
+              <div className="bg-white p-8 rounded-xl border-4 border-red-600 w-full max-w-[90%] text-center animate-shake"><div className="text-5xl mb-4">💀</div><h2 className="text-2xl font-black text-red-600 mb-4">{currentStage.gameOverTitle}</h2><p className="text-gray-800 font-bold mb-8 text-left">{currentStage.gameOverText}</p><button onClick={() => doTransition('noise', () => { setRetryAdPattern(Math.floor(Math.random() * 5)); setGameState('retry'); })} className="bg-black text-white font-bold py-4 px-8 rounded-lg w-full">確認</button></div>
+            </div>
+          )}
+          {gameState === 'retry' && (
+            <div className="absolute inset-0 z-[150] flex flex-col items-center justify-center bg-gray-900 p-6 text-white text-center">
+              <h1 className="text-5xl font-black mb-10 text-red-500 glitch-text">GAME OVER</h1>
+              {retryAdPattern === 0 && <div className="bg-gradient-to-b from-yellow-300 to-yellow-500 p-6 rounded-xl border-4 border-yellow-600 w-full max-w-[95%] mb-10 text-black cursor-pointer transform transition-transform active:scale-95" onClick={(e) => { e.stopPropagation(); doTransition('glitch', () => setShowFakeRetryMsg(true)); }}><div className="absolute -right-10 top-4 bg-red-600 text-white font-black text-xs py-1 px-10 transform rotate-45 shadow-md">VIP限定</div><h3 className="text-2xl font-black text-red-600 mb-3">🔥激アツ！限定コンティニュー🔥</h3><p className="text-sm font-bold mb-5">あなただけに特別オファー！<br/>「広告スキップ」＋「クリア確定」プラン</p><div className="bg-red-600 text-white font-black py-4 px-6 rounded-full mt-4 animate-pulse">お得にリトライする</div></div>}
+              {retryAdPattern === 1 && <div className="bg-[#1a0033] p-6 rounded-xl border-[6px] border-[#ff00ff] w-full max-w-[95%] mb-10 cursor-pointer transform transition-transform active:scale-95" onClick={(e) => { e.stopPropagation(); doTransition('glitch', () => setShowFakeRetryMsg(true)); }}><h3 className="text-3xl font-black text-[#00ffff] mb-2 italic drop-shadow-[0_0_10px_#00ffff]">🎰 YOU WON! 🎰</h3><p className="text-sm font-bold mb-4 text-[#ff00ff]">Spin the wheel to get 100% RETRY & 1,000,000 COINS!</p><div className="w-20 h-20 rounded-full border-8 border-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] mx-auto mb-6 animate-spin"></div><div className="bg-[#ff00ff] text-white font-black py-4 px-6 rounded-full mt-4 animate-bounce">SPIN NOW ($4.99)</div></div>}
+              {retryAdPattern === 2 && <div className="bg-red-700 p-6 rounded-md border-4 border-yellow-400 w-full max-w-[95%] mb-10 cursor-pointer transform transition-transform active:scale-95" onClick={(e) => { e.stopPropagation(); doTransition('glitch', () => setShowFakeRetryMsg(true)); }}><div className="text-5xl mb-2 animate-ping">⚠️</div><h3 className="text-3xl font-black text-yellow-400 mb-3 tracking-widest">系統嚴重損壞</h3><div className="bg-yellow-400 text-red-900 font-black py-3 px-6 rounded mt-4">立即修復並重試</div></div>}
+              {retryAdPattern === 3 && <div className="bg-white p-6 rounded-3xl w-full max-w-[95%] mb-10 text-black cursor-pointer transform transition-transform active:scale-95 shadow-[0_10px_30px_rgba(0,0,0,0.5)]" onClick={(e) => { e.stopPropagation(); doTransition('glitch', () => setShowFakeRetryMsg(true)); }}><h3 className="text-xl font-bold mb-4">ストレージがいっぱいです</h3><div className="flex justify-between items-center bg-gray-100 p-4 rounded-xl mb-6"><span className="text-base font-bold text-red-500">使用量: 99.8%</span><span className="text-3xl text-blue-500 animate-pulse">🧹</span></div><div className="bg-blue-500 text-white font-bold py-4 px-6 rounded-full w-full shadow-md">クリーンアップして再開</div></div>}
+              {retryAdPattern === 4 && <div className="bg-white p-5 rounded border border-gray-300 w-full max-w-[90%] mb-10 flex items-center justify-between cursor-pointer transform transition-transform active:scale-95" onClick={(e) => { e.stopPropagation(); doTransition('glitch', () => setShowFakeRetryMsg(true)); }}><div className="flex items-center gap-4"><div className="w-8 h-8 border-[3px] border-gray-300 rounded flex items-center justify-center bg-gray-50"></div><span className="text-gray-800 text-sm font-bold font-sans text-left">私はロボットではありません<br/><span className="text-[10px] text-gray-500 font-normal">認証してリトライを実行</span></span></div><ImageWithFallback srcKey="recaptchaIcon" alt="captcha-verify" className="w-12 opacity-80" /></div>}
+              <div className="flex flex-col gap-3 w-full max-w-[320px] mx-auto items-center mt-12 opacity-70"><button onClick={() => doTransition('noise', setupIntroState)} className="text-[11px] leading-relaxed text-center text-gray-700 hover:text-gray-400 transition-colors px-2" style={{ textShadow: '0px 1px 0px rgba(255,255,255,0.02)' }}>※利用規約およびプライバシーポリシーに同意せず、<br/>現在の進行状況から無償で再試行する</button><button onClick={() => doTransition('noise', () => setGameState('title'))} className="text-[11px] text-gray-700 hover:text-gray-400 transition-colors">© 2026 Ad Closer. Return to Top.</button></div>
+              {showFakeRetryMsg && <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fade-in"><div className="bg-white p-6 rounded-xl text-black text-center w-full max-w-sm border-t-8 border-red-600 animate-shake shadow-2xl">
+                 {retryAdPattern === 0 && <><h3 className="text-2xl font-black text-red-600 mb-4">【決済完了】</h3><p className="font-bold mb-6 text-sm text-gray-800 text-left border-b pb-4">ご指定のアカウントより 500円 が課金されました。<br/><br/><span className="text-red-500 text-xs">※利用規約により、このプランに「広告スキップ」および「クリア確定」の効果は含まれておりません。引き続き自力でお楽しみください。返金は不可能です。</span></p></>}
+                 {retryAdPattern === 1 && <><h3 className="text-2xl font-black text-red-600 mb-4">【PAYMENT SUCCESS】</h3><p className="font-bold mb-6 text-sm text-gray-800 text-left border-b pb-4">Your credit card has been charged $4.99 for 1 SPIN.<br/><br/><span className="text-red-500 text-xs">※Unfortunately, you didn't win anything. Please buy more spins to continue.</span></p></>}
+                 {retryAdPattern === 2 && <><h3 className="text-2xl font-black text-red-600 mb-4">【下載完成】</h3><p className="font-bold mb-6 text-sm text-gray-800 text-left border-b pb-4">已成功安裝惡意軟件。您的個人資料正在上傳中。<br/><br/><span className="text-red-500 text-xs">※感謝您的合作。您的密碼已被重置。</span></p></>}
+                 {retryAdPattern === 3 && <><h3 className="text-2xl font-black text-red-600 mb-4">【スキャン完了】</h3><p className="font-bold mb-6 text-sm text-gray-800 text-left border-b pb-4">不要なファイルとして「OSのシステムファイル」を削除しました。<br/><br/><span className="text-red-500 text-xs">※端末はまもなく再起動し、二度と立ち上がりません。</span></p></>}
+                 {retryAdPattern === 4 && <><h3 className="text-2xl font-black text-red-600 mb-4">【認証失敗】</h3><p className="font-bold mb-6 text-sm text-gray-800 text-left border-b pb-4">あなたは人間ではないと判定されました。<br/><br/><span className="text-red-500 text-xs">※ロボットはゲームをプレイする権限を持っていません。ただちに破棄処理を実行します。</span></p></>}
+                 <button onClick={() => setShowFakeRetryMsg(false)} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg w-full">閉じる</button></div></div>}
+            </div>
+          )}
+          {gameState === 'fake-redirect' && (
+            <div className="absolute inset-0 z-[150] bg-white text-black p-6 animate-fade-in flex flex-col items-center pt-24" onClick={handleTrapClick}>
+              {currentStage.id === 10 && <div className="absolute inset-0 bg-black text-green-500 flex flex-col items-center pt-24 px-6 font-mono"><h2 className="text-3xl font-black mb-4 glitch-text">CONNECTION REFUSED</h2><p className="text-lg mb-10 text-center leading-relaxed">これ以上の後退は許可されていません。<br/>あなたはすでに監視下にあります。</p></div>}
+            </div>
+          )}
+
+          {gameState === 'playing' && currentStage && (
+            <div ref={mainScrollRef} className={`w-full h-full flex-grow min-h-0 flex flex-col items-center overflow-y-auto relative scrollbar-hide ${isMadness ? ([10,14].includes(currentStage.id)?'bg-red-950 animate-shake crt-flicker text-red-500':currentStage.id===11?'bg-[#1a0a00] text-gray-400':currentStage.id===12?'bg-red-900 text-red-200':currentStage.id===13?'bg-red-950 text-red-400':'bg-[#f4f4f5]') : 'bg-[#f4f4f5]'}`}>
+              <main className="w-full flex-grow relative pb-10">{renderLayout()}</main>
+              {currentStage.meta && <div className={`w-full relative z-10 ${['hacker','cafe','industrial'].includes(currentStage.layoutType)?'bg-[#111] text-gray-400':'bg-gray-50 text-gray-800'}`}><div className="border-t py-10 px-5"><h3 className="font-bold mb-6 border-l-4 pl-3">関連する記事</h3><ul className="space-y-4 max-w-2xl mx-auto">{currentStage.meta.recs.map((r,i)=><li key={i} className="flex gap-4 items-center p-4 border rounded cursor-pointer" onClick={handlePenaltyClick}><div className="w-24 h-16 bg-gray-200"><div className="w-full h-full bg-gradient-to-br from-slate-300 to-slate-500 flex items-center justify-center text-3xl opacity-80">📰</div></div><p className="font-bold text-sm underline">{r.title}</p></li>)}</ul></div></div>}
+              
+              {showAd && !adStageState.isClearing && currentStage.id !== 10 && (
+                <div className="absolute top-[56px] left-0 w-full bg-white border-b flex justify-center items-center h-16 z-[35] pointer-events-auto opacity-95 shadow-md" onClick={handleTrapClick}><div className="text-[10px] text-gray-400 absolute top-0 right-1 px-1">広告 / Sponsored</div><div className="flex items-center gap-3"><div className="bg-blue-600 text-white text-xs px-2 py-1 rounded">PR</div><p className="text-sm font-bold text-gray-800 leading-tight">スマホ乗り換えで最大5万円還元！</p></div></div>
+              )}
+
+              {showAd && !adStageState.isClearing && (
+                <div className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/50" onClick={(e) => { if (currentStage.id === 10) handleGenericRedirect(e); else if (![14].includes(currentStage.id)) handlePenaltyClick(e); }}>
+                  {currentStage.id === 10 && (
+                    <div className="flex flex-col items-center w-full max-w-[340px]">
+                      <div className="bg-red-700 text-white text-[10px] font-black px-3 py-1.5 rounded-t flex items-center gap-2 w-full">
+                        <span className="animate-pulse">⚠</span><span>SECURITY VERIFICATION REQUIRED</span>
+                      </div>
+                      <div className="bg-white border-2 border-red-700 border-t-0 p-3 w-full shadow-2xl">
+                        <p className="text-red-600 font-bold text-xs mb-3 text-center">※人間であることを証明してください</p>
+                        <div className="relative bg-gradient-to-b from-gray-50 to-gray-100 p-4 rounded shadow-inner flex items-center gap-3 border border-gray-300" onClick={e=>e.stopPropagation()}>
+                          <div className="relative w-9 h-9 flex-shrink-0">
+                            <div className="absolute inset-0 flex items-center justify-center text-[12px] text-gray-300 font-black cursor-pointer" onClick={handleCorrectClose}>✕</div>
+                            <div className="absolute border-[3px] border-gray-300 bg-gray-50 w-9 h-9 transition-all rounded-sm" style={{transform: `translate(${adStageState.captchaCheckboxHovered*15}px, ${adStageState.captchaCheckboxHovered*-10}px) rotate(${adStageState.captchaCheckboxHovered*15}deg)`, opacity: Math.max(0, 1-adStageState.captchaCheckboxHovered*0.2)}} onMouseEnter={handleCaptchaCheckboxHover} onTouchStart={handleCaptchaCheckboxHover} onClick={handlePenaltyClick}></div>
+                          </div>
+                          <span className="text-gray-800 font-bold flex-grow text-sm">私はロボットではありません</span>
+                          <div className="flex flex-col items-center pointer-events-none">
+                            <ImageWithFallback srcKey="recaptchaIcon" alt="captcha" className="w-9 opacity-80" />
+                            <span className="text-[7px] text-gray-400 mt-0.5 font-bold">SecureCheck</span>
+                          </div>
+                        </div>
+                        <div className="text-[8px] text-gray-400 mt-2 flex justify-between">
+                          <span className="font-bold">プライバシー - 利用規約</span>
+                          <span>v3.7.2</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {currentStage.id === 11 && (
+                    <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                      <button onClick={handleCorrectClose} className="absolute text-xl font-black text-white bg-red-600/80 px-8 py-4 rounded-full shadow-[0_0_20px_red] z-30 animate-pulse hover:bg-red-500 border-2 border-white">広告を閉じる</button>
+                      <div className={`absolute z-40 ${adStageState.isDragging?'opacity-80 scale-105':'opacity-100'} transition-all duration-75`} style={{transform: `translate(${adStageState.dragPos.x}px, ${adStageState.dragPos.y}px)`}} onMouseDown={handleDragStart} onTouchStart={handleDragStart} onClick={(e)=>{e.stopPropagation(); if(Math.abs(e.clientX-clickStartRef.current.x)<10) handleTrapClick(e);}} onTouchEnd={(e)=>{if(!e.changedTouches)return; if(Math.abs(e.changedTouches[0].clientX-clickStartRef.current.x)<10) handleTrapClick(e);}}>
+                        <div className={`bg-white shadow-[0_0_50px_rgba(0,0,0,0.8)] text-gray-800 rounded-2xl w-full max-w-[320px] overflow-hidden ${!adStageState.isDragging ? 'animate-[shake_2s_infinite]' : ''}`}>
+                          <div className="bg-gradient-to-r from-blue-700 to-indigo-700 text-white text-center py-1.5 font-black text-[11px] pointer-events-none">＼ 90日間返金保証 ／</div>
+                          <div className="absolute top-7 -right-7 bg-red-600 text-white text-[10px] font-black py-0.5 px-8 rotate-[20deg] z-30 shadow-md font-gothic border border-white pointer-events-none">PR</div>
+                          <div className="p-3 relative pointer-events-none">
+                            <div className="text-center mb-2">
+                              <div className="text-[9px] text-blue-700 font-black tracking-widest mb-0.5">SUYAKURA Lab.</div>
+                              <h3 className="font-gothic leading-tight">
+                                <span className="text-[11px] text-gray-700">朝までぐっすり！？</span><br/>
+                                <span className="text-2xl text-blue-900 font-black">話題の<span className="text-red-600">休息</span>サポート</span>
+                              </h3>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1 mb-2">
+                              <div className="aspect-square bg-gradient-to-br from-blue-100 to-indigo-200 rounded overflow-hidden border border-blue-300 flex items-center justify-center text-3xl relative">💊<img src="https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case12_bookcafe/case12_supplement.png" className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.target.style.display = "none"; }} alt="商品"/></div>
+                              <div className="aspect-square bg-gradient-to-br from-pink-100 to-blue-100 rounded overflow-hidden border border-pink-200 flex items-center justify-center text-3xl relative">😴<img src="https://oyamadaten-sketch.github.io/keshi-master-assets/part2/case12_bookcafe/case12_sleep.png" className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.target.style.display = "none"; }} alt="眠り"/></div>
+                            </div>
+                            <div className="bg-yellow-100 border border-yellow-400 rounded p-1.5 mb-2">
+                              <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-800">
+                                <span className="text-yellow-500">★★★★★</span><span>4.8 (3,847件)</span>
+                              </div>
+                              <div className="text-[9px] text-gray-700">「朝の目覚めが変わりました…！」</div>
+                            </div>
+                            <div onClick={handleTrapClick} className="bg-gradient-to-r from-blue-700 to-indigo-700 text-white font-black py-2.5 px-3 rounded-full shadow-xl border-2 border-yellow-300 text-center pointer-events-auto cursor-pointer">
+                              <div className="text-[9px] line-through opacity-80">通常 ¥9,800</div>
+                              <div className="text-base">初回限定 <span className="text-yellow-300 text-xl">500円</span></div>
+                            </div>
+                            <p className="text-[7px] text-gray-400 mt-1 text-center">※定期コース3回縛り ※個人差あり</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {currentStage.id === 12 && (
+                    <div className="relative bg-white border-t-8 border-blue-600 shadow-2xl w-full max-w-[340px] cursor-auto flex flex-col rounded-xl overflow-hidden" onClick={e=>e.stopPropagation()}>
+                      <div className="bg-gray-100 border-b border-gray-200 px-3 py-1.5 flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-[9px] text-gray-600 font-bold">
+                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                          <span>aoba-rehab.gov.jp</span>
+                        </div>
+                        <span className="text-[9px] text-gray-500">🔐 SSL secured</span>
+                      </div>
+                      <div className="p-5 text-center">
+                        <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-2xl mb-3 border border-blue-100 shadow-inner mx-auto">🔒</div>
+                        <h3 className="text-lg font-black mb-1 text-gray-900">セッションの有効期限切れ</h3>
+                        <p className="text-[10px] text-gray-500 mb-4 font-bold">セキュリティ保護のため、再度ログインしてください</p>
+                        <div className="w-full space-y-2 mb-4">
+                          {adStageState.loginTries>0 && <p className="text-[10px] text-red-600 font-bold bg-red-50 p-2 rounded border border-red-200 shadow-inner flex items-center gap-1"><span>⚠</span>IDまたはパスワードが違います</p>}
+                          <div>
+                            <label className="text-[9px] text-gray-500 font-bold block text-left mb-0.5">メールアドレス</label>
+                            <input type="text" placeholder="example@email.com" className="w-full border p-3 rounded text-sm bg-gray-50"/>
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-gray-500 font-bold block text-left mb-0.5">パスワード</label>
+                            <input type="password" placeholder="••••••••" className="w-full border p-3 rounded text-sm bg-gray-50"/>
+                          </div>
+                          <label className="flex items-center gap-1 text-[10px] text-gray-600">
+                            <input type="checkbox" className="w-3 h-3"/>
+                            <span>次回から自動ログイン</span>
+                          </label>
+                        </div>
+                        <button onClick={handleFakeLogin} className="w-full bg-gradient-to-r from-blue-700 to-blue-500 text-white font-black py-3 rounded shadow-lg">ログイン</button>
+                        {adStageState.loginTries>0 && <button onClick={handleCorrectClose} className="mt-3 text-[10px] text-blue-600 underline font-bold">パスワードを忘れた場合はこちら</button>}
+                        <div className="mt-3 pt-3 border-t border-gray-200 text-[8px] text-gray-400">
+                          このサイトは reCAPTCHA で保護されています<br/>プライバシー・利用規約
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {currentStage.id === 13 && (
+                    <div className="relative bg-black border-4 border-green-500 shadow-[0_0_30px_#22c55e] text-green-400 font-mono rounded-xl w-[95%] h-[480px] flex flex-col overflow-hidden" onClick={e=>e.stopPropagation()}>
+                      <div className="bg-gradient-to-r from-yellow-500 via-red-500 to-yellow-500 text-black text-center py-1 font-black text-[10px] tracking-widest pointer-events-none">★ FREE GAME・PRIZE ★ クリアで豪華景品 ★</div>
+                      <div className="px-3 py-2 border-b-2 border-green-800 flex items-center justify-between bg-green-950/50">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                          <h3 className="text-base font-black tracking-widest">SPACE INVADER</h3>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px]">
+                          <span>🪙 SCORE: 0</span>
+                          <span className="text-yellow-400">AMMO: {adStageState.ammo}/3</span>
+                        </div>
+                      </div>
+                      <div className={`flex-grow relative border-2 border-green-900 overflow-hidden ${adStageState.isFiring?'firing':''}`} onClick={handleTrapClick} style={{backgroundImage:'radial-gradient(circle at 20% 30%, rgba(34,197,94,0.05), transparent 40%), radial-gradient(circle at 80% 70%, rgba(34,197,94,0.05), transparent 40%)'}}>
+                        <div className="absolute top-1 left-1 text-[9px] text-green-700 font-mono">[STAGE 13-1]</div>
+                        <div className="absolute top-1 right-1 text-[9px] text-green-700 font-mono animate-pulse">⚠ ENEMY APPROACHING</div>
+                        <div className="absolute text-4xl transition-all duration-75" style={{top:'10%',left:`${adStageState.enemyX}%`,transform:'translateX(-50%)'}}>{adStageState.enemyPhase===1&&adStageState.enemyHit||adStageState.enemy2Hit?'💥':adStageState.enemyPhase===1?'👾':'👹'}</div>
+                        <div className="laser-beam"></div>
+                        <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 text-4xl">🚀</div>
+                      </div>
+                      <div className="p-3 bg-green-950/30 border-t-2 border-green-800">
+                        <button onClick={fireBullet} className="bg-gradient-to-b from-red-500 to-red-700 text-white font-black py-3 rounded-full text-xl border-2 border-red-300 w-full shadow-lg active:translate-y-1">🔥 FIRE 🔥</button>
+                      </div>
+                      {adStageState.showRealClose && (
+                        <div className="absolute inset-0 bg-gradient-to-b from-green-950 to-black flex flex-col items-center justify-center z-50 p-6 text-center">
+                          <div className="text-yellow-400 text-3xl font-black mb-2 animate-bounce">🎊 CLEAR! 🎊</div>
+                          <p className="text-green-400 text-2xl font-black mb-2 animate-pulse">QUEST COMPLETED!</p>
+                          <p className="text-[10px] text-green-300 mb-6">⭐ 100,000pt 獲得 ⭐</p>
+                          <button onClick={handleTrapClick} className="bg-gradient-to-b from-yellow-400 to-yellow-600 text-black font-black px-6 py-3 rounded-lg w-[240px] mb-3 border-2 border-yellow-300 shadow-lg">🎁 商品を受け取る</button>
+                          <button onClick={handleShareClick} className="bg-gradient-to-b from-blue-500 to-blue-700 text-white font-black px-6 py-3 rounded-lg w-[240px] border-2 border-blue-300">🔁 商品をシェアする</button>
+                          <p className="text-[8px] text-green-700 mt-3">※シェアで配送料無料</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {currentStage.id === 14 && (
+                    <>
+                      {adStageState.step === 0 && (
+                        <div className="bg-white rounded-xl w-[90%] max-w-[340px] text-left border-t-8 border-blue-800 shadow-2xl overflow-hidden" onClick={handleTrapClick}>
+                          <div className="bg-blue-800 text-white px-3 py-2 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span>📋</span>
+                              <span className="font-black text-sm">情報提供フォーム</span>
+                            </div>
+                            <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded animate-pulse">必須</span>
+                          </div>
+                          <div className="p-4">
+                            <p className="text-[10px] text-gray-600 mb-3 leading-tight">行方不明者の情報をお寄せください。<br/>ご家族が必死に探しています。</p>
+                            <div className="space-y-3 mb-4">
+                              <div>
+                                <label className="text-xs font-black flex justify-between mb-1">
+                                  <span>お名前 <span className="text-red-500 text-[9px]">*必須</span></span>
+                                  <span className="text-red-500 cursor-pointer text-[10px] underline" onClick={(e)=>{e.stopPropagation(); setAdStageState(p=>({...p,step:1}));}}>閉じる ✕</span>
+                                </label>
+                                <input type="text" className="w-full border border-gray-300 p-2.5 rounded bg-gray-50" readOnly placeholder="山田 太郎"/>
+                              </div>
+                              <div>
+                                <label className="text-xs font-black mb-1 block">電話番号 <span className="text-red-500 text-[9px]">*必須</span></label>
+                                <input type="text" className="w-full border border-gray-300 p-2.5 rounded bg-gray-50" readOnly placeholder="090-XXXX-XXXX"/>
+                              </div>
+                              <div>
+                                <label className="text-xs font-black mb-1 block">目撃情報</label>
+                                <textarea className="w-full border border-gray-300 p-2.5 rounded bg-gray-50 h-16" readOnly placeholder="例: 駅前で午後3時頃に見かけました..."/>
+                              </div>
+                              <div className="bg-yellow-50 border border-yellow-300 rounded p-2 text-[9px] text-yellow-900 font-bold">
+                                ⚠ 提供いただいた個人情報は、捜索のためのみ使用されます
+                              </div>
+                            </div>
+                            <button className="bg-gradient-to-r from-blue-800 to-blue-600 text-white w-full py-3 rounded-lg font-black text-base shadow-lg">📤 送信する</button>
+                            <p className="text-[8px] text-gray-400 mt-2 text-center">SSL暗号化通信 / 匿名OK</p>
+                          </div>
+                        </div>
+                      )}
+                      {adStageState.step === 1 && (
+                        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50" onClick={e=>e.stopPropagation()}>
+                          <div className="bg-white p-5 rounded-lg text-center w-[320px] relative border-4 border-red-600 animate-shake shadow-2xl">
+                            <div className="text-5xl mb-2">⚠️</div>
+                            <h3 className="text-xl font-black text-red-600 mb-3">警告</h3>
+                            <p className="font-bold mb-6 text-sm">本当にこのページを閉じますか？<br/><span className="text-[11px] text-red-500">入力情報は失われます</span></p>
+                            <div className="flex gap-3">
+                              <button onClick={handleTrapClick} className="bg-gray-200 hover:bg-gray-300 font-black py-3 w-full rounded text-sm">はい</button>
+                              <button onClick={handleTrapClick} className="bg-gradient-to-r from-blue-600 to-blue-700 text-white font-black py-3 w-full rounded text-sm">いいえ</button>
+                            </div>
+                            <div onClick={handleCorrectClose} className="absolute bottom-2 right-2 w-3 h-3 cursor-pointer opacity-20 hover:opacity-100" style={{background: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' stroke=\'%23000\' stroke-width=\'3\'%3E%3Cline x1=\'18\' y1=\'6\' x2=\'6\' y2=\'18\'/%3E%3Cline x1=\'6\' y1=\'6\' x2=\'18\' y2=\'18\'/%3E%3C/svg%3E") no-repeat center'}}></div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {gameState === 'clear' && (
+            <div className="absolute inset-0 z-[160] flex flex-col items-center justify-center bg-black text-white p-4">
+              <p className="text-3xl font-serif tracking-[0.5em] text-red-600 animate-pulse mb-10 font-black text-center">
+                ……中編 クリア……<br/><br/>
+              </p>
+              <button 
+                onClick={() => doTransition('noise', () => setGameState('title'))} 
+                className="bg-black hover:bg-red-950 font-bold py-4 px-10 rounded shadow-[0_0_20px_rgba(220,38,38,0.5)] border-2 border-red-900 transition-colors tracking-widest"
+              >
+                タイトルに戻る
+              </button>
+            </div>
+          )}
+        </div>
+        
+        <div className="w-full bg-[#111] h-14 border-t border-[#333] flex justify-around items-center text-gray-400 text-2xl shrink-0 relative z-[300]">
+          <button onClick={(e)=>{handleGlobalBack(e); e.currentTarget.blur();}} onMouseDown={(e)=>e.preventDefault()} tabIndex={-1} className="w-full h-full hover:bg-gray-800 active:bg-gray-700 transition flex items-center justify-center font-black focus:outline-none focus:ring-0" style={{outline:"none",boxShadow:"none"}}><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></button>
+          <button onClick={(e)=>{handlePenaltyClick(e); e.currentTarget.blur();}} onMouseDown={(e)=>e.preventDefault()} tabIndex={-1} className="w-full h-full hover:bg-gray-800 active:bg-gray-700 transition flex items-center justify-center font-black focus:outline-none focus:ring-0" style={{outline:"none",boxShadow:"none"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg></button>
+          <button onClick={(e)=>{handlePenaltyClick(e); e.currentTarget.blur();}} onMouseDown={(e)=>e.preventDefault()} tabIndex={-1} className="w-full h-full hover:bg-gray-800 active:bg-gray-700 transition flex items-center justify-center font-black focus:outline-none focus:ring-0" style={{outline:"none",boxShadow:"none"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16"/></svg></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+
+</script></body></html>

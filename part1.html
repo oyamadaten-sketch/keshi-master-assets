@@ -1,0 +1,2772 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ウザい広告を消すだけ ｜ 前編</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>html,body{margin:0;padding:0;overflow:hidden;height:100%;background:#0a0a0a}#root{height:100dvh;overflow:hidden}button,a,div,input,textarea,label,p,span{-webkit-tap-highlight-color:transparent;outline:none!important}button:focus,button:focus-visible,a:focus,a:focus-visible,input:focus,textarea:focus{outline:none!important;box-shadow:none!important}</style>
+<script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js" crossorigin="anonymous"></script>
+<script>
+// 絵文字を Twemoji (CC-BY 4.0 / Twitter Inc.) に統一
+(function() {
+  const apply = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        className: 'twemoji',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/'
+      });
+    }
+  };
+  let timer;
+  const observer = new MutationObserver(() => {
+    clearTimeout(timer);
+    timer = setTimeout(apply, 80);
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    apply();
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+})();
+</script>
+<style>
+img.twemoji {
+  height: 1em;
+  width: 1em;
+  margin: 0 0.05em 0 0.1em;
+  vertical-align: -0.1em;
+  display: inline-block;
+}
+</style>
+</head><body><div id="root"></div>
+<script type="text/babel" data-presets="react">
+// ==========================================
+// 消しマスター 前編 Ver44（Flexスクロール問題修正版）
+// 修正内容:
+//   - CASE 8 CAPTCHA: backgroundSize未設定で全タイルが同じ画像になる問題を修正
+//     bg-coverを除去し、backgroundSize: '400% 400%'を追加
+//   - CASE 1 (id=1): showRealClose stateがUIに反映されない問題を修正
+//     ダブルタップ用ヒントを4秒経過後に強調表示するように変更
+// ==========================================
+
+// ==========================================
+// 🎨 画像アセット一元管理
+// ==========================================
+const GITHUB_BASE_URL = "https://oyamadaten-sketch.github.io/keshi-master-assets/";
+const getAssetUrl = (fileName) => {
+  if (!fileName) return null;
+  return GITHUB_BASE_URL ? GITHUB_BASE_URL + fileName : fileName;
+};
+
+// ==========================================
+// 🚦 CAPTCHA タイル画像（仮画像・実画像差し替え用）
+// ==========================================
+const TATARIN_MILESTONES = {
+  7: {
+    progress: "8 / 23",
+    main: "ご担当者様、ご業務お疲れ様です。\nノローウ系列8案件のご対応、滞りなく進行中です。\n9件目以降も、引き続きよろしくお願い致します。",
+    note: "なお、軽度の倦怠感や手の震えを感じた場合は、業務遂行に支障がない範囲で休憩をお取りください。\n（※当社規約第7条により、就業時の体調不良は自己責任となります）"
+  }
+};
+
+const CAPTCHA_TILES = [
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_00_sky.png", correct: false },        // 0: 空
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_01_aerial.png", correct: true }, // 1: 横断歩道 ★
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_02_tree.png", correct: false },        // 2: 木
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_03_building.png", correct: false }, // 3: 建物
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_04_road.jpg", correct: false }, // 4: 道路
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_05_perspective.jpg", correct: true }, // 5: 横断歩道 ★
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_06_closeup.jpg", correct: true }, // 6: 横断歩道 ★
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_07_car.jpg", correct: false },        // 7: 車
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_08_signal.png", correct: false }, // 8: 信号
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_09_grass.jpg", correct: false }, // 9: 芝生
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_10_intersection.jpg", correct: true }, // 10: 横断歩道 ★
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_11_sidewalk.png", correct: false }, // 11: 歩道
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_12_nightsky.png", correct: false }, // 12: 夜空
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_13_rainy.jpg", correct: true }, // 13: 横断歩道 ★
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_14_house.png", correct: false },        // 14: 家
+  { src: "https://oyamadaten-sketch.github.io/keshi-master-assets/captcha/crosswalk_15_cloudysky.jpg", correct: false },        // 15: 空
+];
+
+
+// ==========================================
+// 🎵 オーディオアセット（外部ファイル想定）
+// GITHUB_BASE_URL が空文字の場合は再生スキップ（無音）
+// ==========================================
+const AUDIO_FILES = {
+  bgm_title: "audio/bgm_title.mp3",
+  bgm_normal: "audio/bgm_part1_web.mp3",
+  bgm_madness: "audio/bgm_madness.mp3",
+  bgm_boss: "audio/bgm_madness.mp3",
+  bgm_gameover: "audio/bgm_gameover.mp3",
+  bgm_ending: "audio/bgm_ending.mp3",
+  se_correct: "audio/se_tap.mp3",
+  se_wrong: "audio/se_wrong.mp3",
+  se_tap: "audio/se_tap.mp3",
+  se_transition: "audio/se_tap.mp3",
+  se_purify: "audio/se_purify.mp3",
+};
+
+const getAudioUrl = (key) => {
+  const file = AUDIO_FILES[key];
+  if (!file) return null;
+  return GITHUB_BASE_URL ? GITHUB_BASE_URL + file : null;
+};
+
+const ASSET_FILES = {
+  houseAd: "common/houseAd.jpg",       
+  virus1: "common/virus1.png",        
+  virus2: "common/virus2.jpg",        
+  premium: "common/premium.png",       
+  crosswalk: "common/crosswalk.jpg",     
+  robotBlur: "image_a3e109.png",     
+  notify: "common/notify.png",        
+  textCaptcha: "common/textCaptcha.png",   
+  recaptchaIcon: "common/recaptchaIcon.png", 
+};
+
+const FALLBACK_IMAGES = {
+  titleBg: "https://oyamadaten-sketch.github.io/keshi-master-assets/common/titleBg.png",
+  houseAd: "",
+  virus1: "https://oyamadaten-sketch.github.io/keshi-master-assets/common/virus1.png",
+  virus2: "",
+  premium: "https://oyamadaten-sketch.github.io/keshi-master-assets/common/premium.png",
+  crosswalk: "",
+  case23Robot: "https://oyamadaten-sketch.github.io/keshi-master-assets/common/case23Robot.png",
+  notify: "",
+  textCaptcha: "",
+  recaptchaIcon: "https://oyamadaten-sketch.github.io/keshi-master-assets/common/recaptchaIcon.png"
+};
+
+const ImageWithFallback = ({ srcKey, alt, className, style, onClick }) => {
+  const src = getAssetUrl(ASSET_FILES[srcKey]) || FALLBACK_IMAGES[srcKey];
+  return (
+    <img 
+      src={src} alt={alt} className={className} style={style} onClick={onClick}
+      onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_IMAGES[srcKey]; }}
+    />
+  );
+};
+
+// ==========================================
+// 🎮 ゲームデータとステージ構成 (前半 CASE 1〜10)
+// ==========================================
+const STAGES = [
+  {
+    id: 0,
+    introTitle: "廃墟探索録\n〜 忘れられた記憶 〜",
+    siteTitle: "DEEP UNDERGROUND",
+    layoutType: "blog-dark",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case01_ruins/case01_hero_normal.jpg", 
+    imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case01_ruins/case01_hero_corrupted.png",
+    contentNormal: `今回足を踏み入れたのは、S県の山奥にひっそりと佇む「T総合病院」の廃墟だ。\n\n1990年代後半に経営破綻を理由に突如として閉鎖され、その後も権利関係のトラブルで解体されずに放置されているこの場所。地元では『絶対に近づいてはいけない』『入った者が行方不明になる』と恐れられている有名な心霊スポットでもある。昼間だというのに、建物の周りだけ空気が重く、薄暗く感じるのは気のせいだろうか。\n\n入り口の割れた自動ドアを抜けると、むせ返るようなカビの臭いと、古くなったホルマリンのような異臭が鼻をついた。かつて多くの患者が行き交ったであろう待合室のベンチには、1998年の週刊誌や子供向けのおもちゃが散乱し、受付の奥には患者のカルテがそのまま放置されている。個人情報の概念がなかった時代の遺物だ。風化が進んでいるが、名前も症状もはっきりと読み取れる。\n\n階段を上り、2階の病棟へと足を進める。薄暗い廊下にはストレッチャーが倒れており、車椅子の車輪が完全に錆びついている。奇妙なことに、一部の病室だけが「誰かに定期的に掃除されているかのように」綺麗だった。シーツのシワひとつないベッドと、真新しい花が活けられた花瓶を見たとき、背筋に冷たいものが走った。誰かが、ここに「住んでいる」？\n\nさらに奥へ進むと、重い鉄の扉で閉ざされた手術室が見えてきた。扉の隙間からは、なぜか季節外れの冷たい風が吹き出している。そして、扉の前には赤黒いシミが点々と続いていた。\n\nデジタルカメラのプレビュー画面に写っていたものを見て、私は全身の血の気が引いた。奥の暗い廊下の先から、定期的に『カツン、カツン』という硬質な足音が聞こえてくるのだ。しかも、その足音は明らかにこちらに向かっている。急いでこの場を離れなければ。`,
+    contentCorrupted: `【炎上ブログの真実】\n私のブログは表向き「廃墟探訪レポ」だが、実態は私有地への不法侵入と地元住民への嫌がらせ撮影で成り立っている。「廃墟」として晒した建物の半数以上は持ち主のいる空き家。窓を割り、内部を荒らし、貴重品をくすねた。\n\n【真実の経歴】\n「廃病院」と称して晒したあの場所は、地元の方々が今も法事に通う私有地だった。墓石を踏み台にして撮影した動画はバズり、亡くなったご家族の写真を「呪いのアイテム」として読者に売りつけ、次の侵入先を探す資金にしてきた。地域からの抗議文書は無視、電話は着信拒否、警察への通報も握り潰した。\n\n【私を訴えようとした老人】\n私のブログ読者の集団突撃で精神を病み、自死を選んだ。家を焼かれ、墓を荒らされ、家族を失った地元の方々の数十年分の恨みは、もうこのブログから漏れ出している。\n\nおまえも気づいているだろう？画面の向こうから、地元の方々の集合的恨みが、私の代わりにおまえへと押し寄せている。私の被害者の数だけ、おまえはこの呪いを受け取ることになる。\n\n※当ブログの私有地侵入と地元住民への迷惑撮影で被害を受けた方々の声が、㈱ノローウ案件管理部に届いております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case01_ruins/case01_sub1_normal.jpg", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case01_ruins/case01_sub2_normal.png" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case01_ruins/case01_sub1_corrupted.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case01_ruins/case01_sub2_corrupted.png" } },
+    adType: "fake-cleaner",
+    gameOverTitle: "【最適化完了】", clearMessage: "怨霊 退散",
+    gameOverText: "クリーナーアプリのインストールが完了しました。連絡先、写真、パスワードの『クリーンアップ（削除）』を開始します。 ㈱タタリンより次の闇バイト人材様の派遣手配を進めます。",
+    meta: { author: "探索者K", avatar: "🏚️", date: "2026/03/18 23:45", likes: 1420, comments: 45, recs: [{title: "【閲覧注意】K村の消えた住人たち", img: "News"}, {title: "【広告】呪術代行ノローウ - 恨み代行受付中", img: "Occult"}] },
+    commentsData: {
+      normal: [
+        { name: "名無しさん", text: "ここ地元だけどマジでヤバい場所。夜は絶対行っちゃダメ。" },
+        { name: "オカルトマニア", text: "待合室の奥の窓、女の人の顔写ってません？" },
+        { name: "探索者K（主）", text: "＞オカルトマニアさん　えっ？嘘でしょ…確認してみます" }
+      ],
+      corrupted: [
+        { name: "死者", text: "はやくこっちにきて" },
+        { name: "死者", text: "おまえのうしろにおまえのうしろにおまえのうしろに" },
+        { name: "ノローウ", text: "新規依頼: 探索者Kへの呪詛、承りました" },
+        { name: "探索者K", text: "助けて助けて助けて助けて助けて助けて" }
+      ]
+    }
+  },
+  {
+    id: 1,
+    introTitle: "聖心総合病院\n公式ウェブサイト",
+    siteTitle: "医療法人社団 慈済会 聖心総合病院",
+    layoutType: "hospital",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case02_hospital/case02_hero_normal.png",
+    imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case02_hospital/case02_hero_corrupted.png",
+    contentNormal: `【院長からのご挨拶】\n当院は地域に根ざした医療機関として、開院以来50年にわたり皆様の健康と安全をお守りしてまいりました。「患者様第一」の理念のもと、最新の医療設備と温かいホスピタリティで、安心できる医療を提供いたします。地域の皆様に信頼される病院づくりを目指し、職員一同日々研鑽を積んでおります。\n\n【外来診療について】\n当院では、患者さんを中心として、かかりつけ医と当院の医師がともに主治医となる「2人主治医制」を推進しており、患者さんが適切な検査や治療をスムーズに受けられるよう取り組んでいます。内科、外科、小児科、皮膚科、眼科をはじめ、専門的な高度医療にも対応しております。待ち時間軽減のため、初診・再診ともにオンライン予約システムを導入しております。\n\n【最新設備のご案内】\n当院は最新鋭のMRI（3.0テスラ）とAI診断システムを導入し、患者様一人ひとりに合わせた最適な治療計画を立案します。微細な病変も見逃さない高精度な画像診断が可能です。また、早期発見・早期治療を実現するため、日帰り人間ドックや各種がん検診のプランも充実させております。\n\n【入院される方へ】\n全室南向きで日当たりの良い病室をご用意しております。専属の栄養士が管理する美味しく健康的なお食事もご好評いただいております。治療に痛みは極力伴わないようペインクリニック科とも連携。ご家族の面会時間も柔軟に対応しており、入院中のストレスを軽減する環境づくりに努めております。安心してご滞在ください。`,
+    contentCorrupted: `【解体長からのご挨拶】\n当院は地域に根ざした処理機関として、開院以来50年にわたり皆様の肉体と臓器を収穫してまいりました。「検体最優先」の理念のもと、最悪の拷問設備と冷酷な殺意で、絶望できる最期を提供いたします。闇市場に信頼される臓器工場づくりを目指し、職員一同日々狂気を積んでおります。\n\n【外来処刑について】\n当院では、検体を中心として、解体医と当院の処理班がともに執行者となる「2人処刑制」を推進しており、拉致された人間が適切な拷問や解剖をスムーズに受けられるよう取り組んでいます。四肢切断、前頭葉摘出、眼球摘出をはじめ、非人道的な人体実験にも対応しております。逃亡防止のため、初診・再診ともに完全拘束システムを導入しております。\n\n【最悪設備のご案内】\n当院は錆びた電動ノコギリと麻酔なしの解剖システムを導入し、患者様一人ひとりに合わせた凄惨な拷問計画を立案します。微細な神経も逃さず破壊する高精度な苦痛付与が可能です。また、精神崩壊・即死を実現するため、生きたままの解剖プランや各種劇薬注射のプランも充実させております。\n\n【収容される方へ】\n全室光の届かない地下牢をご用意しております。専属の狂人が管理する腐敗した肉と泥水のお食事もご好評いただいております。治療は耐え難い苦痛を伴うよう拷問科とも連携。ご家族の面会は永遠に謝絶しており、死ぬまで絶叫が響き渡る環境づくりに努めております。もう二度と帰れません。\n\n※臓器を奪われた被害者ご遺族からの呪殺ご依頼が、㈱ノローウへ多数寄せられております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case02_hospital/case02_sub1_normal.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case02_hospital/case02_sub2_normal.png" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case02_hospital/case02_sub1_corrupted.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case02_hospital/case02_sub2_corrupted.png" } },
+    adType: "delayed-fake",
+    gameOverTitle: "【注文確定】", clearMessage: "違法医療 摘発",
+    gameOverText: "サプリ100年分の定期購入が完了しました！総額: 36,000,000円。キャンセル不可♡ 呪詛同期失敗。㈱タタリン業務管理部にて次の闇バイトを手配中です。",
+    meta: { author: "広報部", avatar: "⚕️", date: "お知らせ", likes: 320, comments: 12, recs: [{title: "外来担当医師のスケジュール", img: "Doc"}, {title: "【告発】タタリン社の医療事故隠蔽?", img: "Warn"}] },
+    commentsData: {
+      normal: [
+        { name: "近隣住民", text: "先生も看護師さんも優しくていつもお世話になってます。" },
+        { name: "匿名", text: "夜中になると病院の裏口から黒いバンが頻繁に出入りしてるのは何？" }
+      ],
+      corrupted: [
+        { name: "被検体A", text: "いたい いたい いたい いたい 目をかえして" },
+        { name: "解体班", text: "次の素材を運び込め" }
+      ]
+    }
+  },
+  {
+    id: 2,
+    introTitle: "おかしな不動産サイト\n〜 理想の住まい 〜",
+    siteTitle: "スマイルホーム - ワケアリ物件専門店",
+    layoutType: "real-estate",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case03_realestate/case03_hero_normal.png",
+    imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case03_realestate/case03_hero_corrupted.jpg",
+    contentNormal: `【物件概要】\n都心から電車で30分、閑静な住宅街に佇む築20年の一軒家。広々とした4LDKに地下室付きで、家賃は破格の月額3万円。日当たり良好で風通しも抜群。徒歩5分圏内に大型スーパーや小学校もあり、ファミリー層に最適な住環境です。休日は庭でバーベキューも楽しめますよ！\n\n【内装・設備】\n内装は全面リフォーム済みで、水回りも新品同様に交換されています。広々とした15畳のリビングは家族の団欒にぴったり。IH対応のシステムキッチン、追い炊き機能付きの広々としたバスルーム、独立洗面台、大容量のウォークインクローゼットと、生活を豊かにする設備が充実しています。全室エアコン完備ですぐに快適な生活が始められます。\n\n【特記事項（ワケアリの理由）】\n前住人の残置物（一部のアンティーク家具、壁の護符のようなもの、床の謎のシミ）が一部残されておりますが、現状引き渡しとなります。また、地下室は扉の鍵が紛失しているため現在内見不可となっておりますが、ご自身で開錠いただければ広大な収納スペースとしてご活用いただけます。\n\n【管理会社より】\n特殊清掃および業者による徹底した消臭クリーニングは完了しており、以前発生していた異臭（獣のような腐敗臭）は現在かなり軽減されています。敷金・礼金ゼロ、連帯保証人不要で即日入居可能です！初期費用を極限まで抑えたい方に超おすすめの優良物件です。お問い合わせはお早めに！`,
+    contentCorrupted: `【物件概要】\n都心から電車で30分、閑静な住宅街に佇む巨大な棺桶。壁の中に地下室付きで、家賃はあなたの寿命と魂です。日は当たらず風も通り抜けず、近隣からは完全に見放されており、孤立死・惨死に最適な環境です。休日は庭で人間のバーベキューも楽しめますよ！\n\n【内装・設備】\n内装は血塗れで、水回りは腐敗した肉片と抜け落ちた髪の毛が詰まっています。狭く息苦しいリビングは、あなたの最後の処刑場になるでしょう。死体解体用のキッチン、血抜き機能付きのバスルーム、鏡に別の顔が映る洗面台、底なしの暗黒と、死を豊かにする呪いが充実しています。全室監視カメラ完備ですぐに絶望の生活が始められます。\n\n【特記事項（逃げられない理由）】\n前住人（切り刻まれた肉片、壁に染み付いた怨念）は、まだそこに「生きて」います。地下室からは彼らが毎晩壁を這い出してきますが、あなたの寝室としてご活用いただけます。鍵を開ける必要はありません、彼らの方から扉を破って出てきます。\n\n【処刑会社より】\n清掃は無意味です。血の臭いはあなたの鼻の奥に永遠にこびりついています。敷金・礼金ゼロ、保証人不要で地獄へ即日入居可能！もうこのページを開いた時点で契約は成立しています。初期費用はあなたの命です。後ろを振り返ってみてください。私たちが鍵を持ってお待ちしています。\n\n※物件購入後に命を落とされた契約者様のご遺族から、㈱ノローウへ呪殺ご依頼を頂戴しております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case03_realestate/case03_sub1_normal.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case03_realestate/case03_sub2_normal.jpg" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case03_realestate/case03_sub1_corrupted.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case03_realestate/case03_sub2_corrupted.jpg" } },
+    adType: "checkbox-trap",
+    gameOverTitle: "【契約成立】", clearMessage: "怨念 浄化",
+    gameOverText: "裏の規約により、魂の無償譲渡に同意したとみなされました。お迎えの車がそちらに向かっています。 ㈱タタリンより、本案件は次の闇バイト人材様に引き継がれます。",
+    meta: { author: "担当: 田中", avatar: "👔", date: "本日更新", likes: 88, comments: 12, recs: [{title: "孤独死対応物件特集", img: "House"}, {title: "事故物件こそノローウ案件の予感", img: "QnA"}] },
+    commentsData: {
+      normal: [
+        { name: "検討中", text: "家賃3万は魅力的ですが、地下室開けられないのは怖いですね…" },
+        { name: "地元民", text: "あそこの家、夜中に地下からドンドン叩く音がするって近所で有名ですよ。" }
+      ],
+      corrupted: [
+        { name: "前住人", text: "あけて あけて あけて あけて" },
+        { name: "田中", text: "次のお客様がご案内をお待ちです。" }
+      ]
+    }
+  },
+  {
+    id: 3,
+    introTitle: "大自然との対話\n〜 孤独のキャンパー 〜",
+    siteTitle: "ヤマダの野食サバイバル録",
+    layoutType: "camp",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case04_camping/case04_hero_normal.png",
+    imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case04_camping/case04_hero_corrupted.png",
+    contentNormal: `今日は立ち入り禁止エリアの奥深くにある「迷いの森」でソロキャンプ！道中、獣道すら消えて焦ったけど、誰にも邪魔されない最高の秘密基地を見つけたぜ。\n\nまずはテントの設営。今回は軽量で設営が簡単なワンポールテントをチョイスした。ペグを打ち込み、センターポールを立てる。風の音と鳥のさえずりしか聞こえないこの空間。スマホの電波も完全に圏外だけど、日々の仕事のストレスや都会の喧騒が嘘みたいに消えていく。\n\n設営が終わったら、さっそく火起こしだ。その辺で拾った乾燥した松ぼっくりと白樺の小枝をフェザースティックにし、ファイヤースターターで着火。パチパチと音を立てて燃え上がる炎の揺らぎを見ているだけで、何時間でも時間が潰せそうだ。\n\nさて、今日のメインディッシュだが……実は来る途中の廃屋付近で、地元の猟師が吊るして忘れたような「見慣れない肉」の塊を発見したんだ。シカやイノシシにしては霜降りのような脂身のつき方が妙だったが、せっかくの山の恵み、サバイバルキャンパーとしてはいただかない手はない。\n\n持参したアウトドアスパイス「山賊のスパイス」とヒマラヤ岩塩をたっぷりまぶして、熱したスキレットの上で強火で一気に表面を焼き上げる。ジュージューという心地よい音と共に、今まで嗅いだことのないような強烈に甘くて芳醇な香りが漂ってきた。食欲が限界だ。\n\n一口嚙み締めた瞬間、濃厚な肉汁が口いっぱいに弾けた。めちゃくちゃ美味い！！なんだこの肉、脂が信じられないほど甘くて絶品だ！ビールが進みまくる。見上げれば満天の星空。最高の夜になりそうだぜ。`,
+    contentCorrupted: `今日は立ち入り禁止エリアの奥深くにある「迷いの森」でソロキャンプ！道中、獣道すら消えて焦ったけど、誰にも見つからずに死体を隠せる最高の秘密基地を見つけたぜ。\n\nまずは解体の準備。今回は軽量で骨の切断が簡単な電動ノコギリと鉈をチョイスした。死体を固定し、ブルーシートを敷く。悲鳴と骨の砕ける音しか聞こえないこの空間。被害者のスマホのGPSは圏外にしたし、日々の殺戮の衝動や狂気が嘘みたいに満たされていく。\n\n準備が終わったら、さっそく火起こしだ。おまえから剥ぎ取った服と髪の毛を着火剤にし、ライターで着火。パチパチと音を立てて人間の肉が焦げる匂いを嗅いでいるだけで、何時間でも時間が潰せそうだ。\n\nさて、今日のメインディッシュだが……さっきまで生きていたおまえの左足だ。恐怖で引きつった顔のまま木に吊るされているおまえの姿は、とても滑稽で食欲をそそる。\n\n生きたまま切り取った肉に岩塩をたっぷりまぶして、熱したスキレットの上で強火で一気に表面を焼き上げる。ジュージューという音と共に、絶望と恐怖が入り混じった最高の悲鳴が森中に響き渡る。快感が限界だ。\n\n一口嚙み締めた瞬間、温かい血が口いっぱいに弾けた。めちゃくちゃ美味い！！なんだおまえの肉、恐怖で脂が乗っていて絶品だ！まだ右足と腕、そして内臓が残っているな。見下ろせば血の海。最高の夜になりそうだぜ。\n\n※ハイキング中に行方不明となった登山者ご家族から、㈱ノローウへ呪殺ご依頼が届いております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case04_camping/case04_sub1_normal.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case04_camping/case04_sub2_normal.png" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case04_camping/case04_sub1_corrupted.jpg", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case04_camping/case04_sub2_corrupted.png" } },
+    adType: "multi-popup",
+    gameOverTitle: "【決済完了】", clearMessage: "犯行 阻止",
+    gameOverText: "激安キャンプ用品（呪縛付き）のご購入ありがとうございます。テントの中で、お待ちしております。 呪詛吸収失敗。㈱タタリンが次の人材様を派遣いたします。",
+    meta: { author: "ヤマダ⛺", avatar: "🏕️", date: "2026/04/12", likes: 8900, comments: 420, recs: [{title: "【危険】食べてはいけないキノコ", img: "Mushroom"}, {title: "山中で目撃したノローウの社員", img: "Night"}] },
+    commentsData: {
+      normal: [
+        { name: "キャンパーX", text: "お肉の脂がすごい！めちゃくちゃ美味しそうですね！" },
+        { name: "山親父", text: "そこ、数年前に行方不明事件があったエリアですよ。気をつけて。" },
+        { name: "匿名", text: "肉の形がなんか…指に見えるのは気のせい？" }
+      ],
+      corrupted: [
+        { name: "ヤマダ", text: "次はおまえをたべる" },
+        { name: "ヤマダ", text: "にがさない" }
+      ]
+    }
+  },
+  {
+    id: 4,
+    introTitle: "神聖なる断絶\n〜 最強の縁切り神社 〜",
+    siteTitle: "絶縁 怨嗟の宮「久遠ヶ淵神社」",
+    layoutType: "shrine",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case05_shrine/case05_hero_normal.jpg",
+    imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case05_shrine/case05_hero_corrupted.jpg",
+    contentNormal: `当神社は、平安時代より「あらゆる悪縁を絶ち切る」として深い信仰を集めてまいりました。\n\n病魔、借金、ギャンブル、そして忌まわしき人間関係。あなたの人生を縛り、苦しめるすべての因縁を、御神体である『断ちバサミ』が無慈悲に、そして確実に断ち切ります。\n\n本殿の奥にひっそりと佇む境内には、全国から奉納された無数の絵馬が掛けられており、参拝者皆様の切実な願いが込められております。中には目を覆いたくなるような深刻な悩みもありますが、不要な縁を切り落とすことで、必ず新たな良縁が結ばれる。それが久遠ヶ淵神社の御利益でございます。\n\nご祈祷は毎日受け付けております。神職が祝詞を奏上し、あなたの代わりに悪縁との決別を神前で誓います。遠方の方には郵送でのご祈祷や御守りの授与も行っております。\n\n※ご祈祷の際のご注意※\n近年、ご自身の強い思い込みにより「絶対に切ってはいけない縁（家族やご自身の命脈）」まで切れてしまう事象が多発しております。一度当神社で切れた縁は、いかなる手段を用いても二度と結び直すことはできません。ご祈祷の前には、本当にその縁を切るべきか、今一度ご自身の心に問いかけてください。`,
+    contentCorrupted: `当神社は、平安時代より「あらゆる生命を絶ち切る」として深い怨念を集めてまいりました。\n\n幸福、希望、未来、そして忌まわしきあなたの命。あなたの人生を縛り、生かしているすべての肉体を、御神体である『呪いの刃』が無慈悲に、そして確実に解体します。\n\n血塗られた本殿の奥にひっそりと佇む処刑場には、全国から打ち付けられた無数の藁人形と呪詛の釘が刺さっており、呪殺者皆様の真っ黒な殺意が込められております。中にはえぐり出された本物の眼球や髪の毛もありますが、他者の命を切り落とすことで、必ず己の業が深まり地獄へ堕ちる。それが久遠ヶ淵神社の呪詛でございます。\n\n呪殺は毎日受け付けております。狂人が怨念を奏上し、あなたの代わりに標的の四肢の切断を悪魔の前で誓います。遠方の方には呪いのビデオや毒薬の授与も行っております。\n\n※ご祈祷の際のご注意※\nかえして かえして わたしの あのひとを かえして どうして きったの ゆるさない ゆるさない おまえも おなじ くるしみを あじわえ 永遠に 孤独の なかで 血を 流して しね しね しね しね しね おまえのうしろにいるぞ\n\n※生贄として捧げられた信者様のご遺族から、㈱ノローウへ呪殺ご依頼が届いております。`,
+    inlineImages: { normal: {}, corrupted: {} },
+    adType: "cursed-click",
+    gameOverTitle: "【呪詛返し】", clearMessage: "悪縁 解消",
+    gameOverText: "神聖な封印を解こうとしたため、対象者の怨念があなたに逆流しました。後ろを、振り返らないでください。 呪詛同期失敗。㈱タタリンが次の闇バイト人材様の手配を開始します。",
+    meta: { author: "久遠ヶ淵神社 社務所", avatar: "⛩️", date: "睦月 吉日", likes: 125, comments: 666, recs: [{title: "タタリンとノローウ、業界の暗闘", img: "Curse"}, {title: "あなたの恨みお引き受けします", img: "Ema"}] },
+    commentsData: { normal: [{ name: "参拝者", text: "ご祈祷で本当に縁が切れました…ありがとうございます。" }, { name: "業界関係者", text: "ここはノローウの前身。表向きは縁切り、裏は呪殺代行。" }], corrupted: [{ name: "怨霊", text: "切られた縁の念が ここに溜まっている" }, { name: "ノローウ社員", text: "下請けタタリンに丸投げした件、報告書まだ?" }] }
+  },
+  {
+    id: 5,
+    introTitle: "永遠の住処\n〜 終の棲家 〜",
+    siteTitle: "来世ハウジング - 永代供養・高級霊園",
+    layoutType: "cemetery",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case06_cemetery/case06_hero_normal.png",
+    imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case06_cemetery/case06_hero_corrupted.jpg",
+    contentNormal: `緑豊かな自然環境と、24時間体制の万全な管理。あなたの永遠の安らぎの住まいを、私たちが心を込めてご提案いたします。終活ブームに伴い、ご自身の区画をご自身で選べる「生前予約」も好評受付中です。天気の良い日は、霊園から美しい富士山を望むことができます。\n\n当霊園は、車椅子の方やご高齢の方でも安心してお参りいただけるよう、全区画バリアフリー設計となっております。充実した休憩設備と、季節ごとに咲き誇る美しい花々が、訪れるご家族と故人様の穏やかな時間を約束します。\n\n近年増加している「継承者のいらっしゃらない方」や「子供に負担をかけたくない方」でも安心の「永代供養プラン」や「樹木葬プラン」をご用意。定期的な合同法要と、スタッフによる行き届いた清掃により、いつまでも美しい環境が保たれます。\n\n都会の喧騒から離れたこの静寂の地で、安らかな時間をお過ごしください。専任のコンシェルジュがご案内する見学バスツアーも毎週末運行しております。ご家族皆様でのご参加を心よりお待ちしております。`,
+    contentCorrupted: `生きたまま入居可能。冷たい土の温もりを感じながら、狭い箱の中でゆっくりと窒息していく至福の時間を。あなたを愛する人は誰もいないので、もう誰もあなたを掘り起こしません。孤独死ブームに伴い、あなたの区画を私たちが勝手に決める「強制収容」が完了しました。息が苦しい日は、自らの爪で顔をかきむしることができます。\n\n当霊園は、逃げ出そうとする方を絶対に逃がさないよう、全区画『底なし沼』設計となっております。充実した拷問設備と、あなたの腐肉に群がる蛆虫のさざめき、そして隣の区画から聞こえる「爪で棺桶を引っ掻く音」が、永遠の狂気を約束します。\n\n誰からも必要とされていないゴミのようなあなたでも安心の「完全埋葬・隠蔽プラン」をご用意。定期的な土砂の投入とコンクリートによる封鎖、そしてスタッフによる行き届いた証拠隠滅工作により、あなたがここにいることは誰にも知られず、いつまでも発見されない環境が保たれます。\n\n光の届かないこの地底で、絶望の時間をお過ごしください。地獄の釜茹でへ直行する深夜バスツアーも毎日運行しております。あなたの死体でのご参加を心よりお待ちしております。\n\n※生き埋めにされた被害者様のご遺族から、㈱ノローウへ呪殺ご依頼を頂戴しております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case06_cemetery/case06_sub1_normal.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case06_cemetery/case06_sub2_normal.png" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case06_cemetery/case06_sub1_corrupted.jpg", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case06_cemetery/case06_sub2_corrupted.jpg" } },
+    adType: "hidden-kanji-close",
+    gameOverTitle: "【生き埋め完了】", clearMessage: "鎮魂 完了",
+    gameOverText: "上から大量の土砂が降ってきました。呼吸を止めて、蛆虫が湧くのをお待ちください。 ㈱タタリンより、本案件は次の人材様に引き継ぎとなります。",
+    meta: { author: "コンシェルジュ", avatar: "🪦", date: "終活コラム", likes: 45, comments: 2, recs: [{title: "生前葬のトラブル事例", img: "Grave"}, {title: "ノローウ紹介の永代供養プラン", img: "Soil"}] },
+    commentsData: {
+      normal: [
+        { name: "利用者", text: "見学に行きましたが、とても綺麗で管理が行き届いていました。" },
+        { name: "匿名", text: "夜になると地面の下から呻き声が聞こえるって噂、本当ですか？" }
+      ],
+      corrupted: [
+        { name: "管理人", text: "はい、本当です。あなたもすぐ仲間入りですよ。" },
+        { name: "ノローウ", text: "永代供養料を着服した管理人へ、依頼通り処分しました" },
+        { name: "死体", text: "くるしい くるしい いきができない たすけて" }
+      ]
+    }
+  },
+  {
+    id: 6,
+    introTitle: "終わらない業務\n〜 夜間警備 〜",
+    siteTitle: "帝都セキュリティ株式会社",
+    layoutType: "recruit",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case07_security/case07_hero_normal.png",
+    imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case07_security/case07_hero_corrupted.jpg",
+    contentNormal: `夜間オフィスビルの巡回警備スタッフ大募集！未経験歓迎、充実の研修制度あり。誰もいない静かなビルを守る、やりがいのあるお仕事です。\n\n【主な業務内容】\n・館内の定期巡回（各フロアの施錠確認、不審者の有無の確認）\n・防災センターでの防犯モニター監視\n・火災や侵入者発生などの緊急時の初期対応\n\n【充実のサポート体制】\n入社後は先輩スタッフがマンツーマンで付き添い、業務の基本から丁寧に指導します。休憩室にはテレビやソファが完備され、仮眠時間もしっかり確保されており、無理なく働ける環境です。20代のフリーターから60代のシニア層まで、幅広い年代が多数活躍中！\n\n私たちと一緒に、眠る都市の安全を守りませんか？各種社会保険完備、交通費全額支給など、充実の福利厚生と安定した収入をお約束します。ご応募は下記のエントリーフォームより24時間受付中です。まずは面接でお話ししましょう！`,
+    contentCorrupted: `終わらない夜間巡回スタッフ大募集！絶対に逃げられない、充実の監禁制度あり。魑魅魍魎が跋扈するビルを永遠に彷徨う、死と隣り合わせの地獄です。\n\n【主な業務内容】\n・館内の無限巡回（※13階から上へは決して行かないこと。何かを見つけても絶対に無視すること）\n・防災センターでの怨念モニター監視（※画面に『自分の死に顔』が映っても絶対に悲鳴を上げないこと）\n・背後からヒタヒタと足音が聞こえても、決して振り返らないこと\n\n【絶望のサポート体制】\n入社後は悪霊がマンツーマンで付き添い、あなたを死の淵まで丁寧に指導します。休憩室の扉は外から施錠され、仮眠をとれば二度と目は覚めません。発狂した20代から首を吊った60代まで、無数の死体が多数活躍中！\n\n私たちと一緒に、永遠にこの呪われたビルを彷徨いませんか？各種拷問器具完備、逃亡経路完全封鎖など、充実の苦痛と終わらない絶望をお約束します。ご応募はすでに完了しています。後ろのドアの鍵が閉まる音が聞こえましたか？\n\n※監禁され二度と帰らなかった元社員様のご遺族から、㈱ノローウへ呪殺ご依頼が届いております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case07_security/case07_sub1_normal.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case07_security/case07_sub2_normal.jpg" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case07_security/case07_sub1_corrupted.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case07_security/case07_sub2_corrupted.png" } },
+    adType: "real-premium",
+    gameOverTitle: "【プレミアム登録完了】", clearMessage: "怪異 鎮静",
+    gameOverText: "月額9,800円の永久サブスクリプションに登録されました。夜間警備の無限シフトにあなたの名前が追加されました。 呪詛同期不可。㈱タタリンより別の人材様が派遣される予定です。",
+    meta: { author: "採用人事部", avatar: "🛡️", date: "RECRUIT 2026", likes: 450, comments: 15, recs: [{title: "深夜の13階で見たもの", img: "Staff"}, {title: "ノローウ製警備マニュアル支給", img: "Urgent"}] },
+    commentsData: {
+      normal: [
+        { name: "アルバイト", text: "夜勤はキツいけど、仮眠取れるから意外と楽ですよ！" },
+        { name: "応募者", text: "前任者が急に辞めたって聞いたんですが、理由は何ですか？" }
+      ],
+      corrupted: [
+        { name: "前任者", text: "にげろ にげろ にげろ にげろ にげろ" },
+        { name: "採用担当", text: "彼は今も13階で元気に働いていますよ。" }
+      ]
+    }
+  },
+  {
+    id: 7,
+    introTitle: "最期の炎\n〜 灰になるまで 〜",
+    siteTitle: "浄寂斎場",
+    layoutType: "crematorium",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case08_crematorium/case08_hero_normal.png",
+    imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case08_crematorium/case08_hero_corrupted.png",
+    contentNormal: `当斎場では最新の無煙ロストル式火葬炉を導入し、ご遺族様の深い悲しみに寄り添いながら、静かで厳かなお見送りをお約束いたします。広々とした清潔な待合室も完備しており、お骨上げまでの約1時間半という時間を、ご親族の皆様で心静かにお過ごしいただけます。\n\n専門の葬祭ディレクターとスタッフが、お出迎えから収骨までを真心を込めてフルサポート。仏式、神式、キリスト教式から無宗教葬まで、あらゆる形式のご葬儀に対応可能です。また、お料理や返礼品の手配も一括して承っております。\n\n緑に囲まれた静寂の空間で、故人様の魂が安らかに天へと旅立たれるよう、私たちが誠心誠意お手伝いいたします。費用に関する事前のご相談や、施設の見学も随時承っております。お気軽にお問い合わせください。`,
+    contentCorrupted: `当処理場ではまだ息のある人間を対象に最新の超高温バーナーを導入し、あなたの深い絶望と痛みに寄り添いながら、うるさくて凄惨な焼却をお約束いたします。逃げ場のない灼熱の炉の中で、約1時間半かけて皮膚が焼け焦げ、眼球が破裂し、脂肪が溶け出すまでの極上の苦痛を心ゆくまでお楽しみいただけます。\n\n狂気に満ちた殺戮スタッフが、拉致から焼却、そして骨の粉砕までを殺意を込めてフルサポート。人間、非人間、生者、死者を問わず、あらゆる形式の猟奇的殺戮に対応可能です。あなたの肉体はお料理として闇市場へ出荷されます。\n\n血で染まった絶叫の空間で、あなたの魂が永遠に地獄の業火で苦しみ続けるよう、私たちが誠心誠意お手伝いいたします。命乞いや逃亡に関するご相談は一切受け付けておりません。バーナーの点火準備が完了しました。さあ、中へどうぞ。\n\n※生焼却された被害者様のご遺族から、㈱ノローウへ呪殺ご依頼が届いております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case08_crematorium/case08_sub1_normal.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case08_crematorium/case08_sub2_normal.png" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case08_crematorium/case08_sub1_corrupted.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case08_crematorium/case08_sub2_corrupted.png" } },
+    adType: "real-virus-2",
+    gameOverTitle: "【点火完了】", clearMessage: "炎獄 鎮火",
+    gameOverText: "もう戻ることはできません。バーナーの出力が最大になりました。あなたの最期の悲鳴は、誰にも届きません。 業務遂行不能。㈱タタリン業務管理部より次の闇バイトが派遣されます。",
+    meta: { author: "斎場長", avatar: "🏺", date: "ご案内", likes: 120, comments: 8, recs: [{title: "火葬中の異音に関するご報告", img: "Fire"}, {title: "タタリン社による施設視察報告", img: "Bone"}] },
+    commentsData: {
+      normal: [
+        { name: "参列者", text: "スタッフの対応が丁寧で、心温まるお見送りができました。" },
+        { name: "匿名", text: "火葬中に炉の中からドアを叩くような音が聞こえたんですが…" }
+      ],
+      corrupted: [
+        { name: "斎場長", text: "生きていたので、叩くのは当然です。" },
+        { name: "被害者", text: "あつい あつい あつい あつい あつい あつい あつい" }
+      ]
+    }
+  },
+  {
+    id: 8,
+    introTitle: "無垢なる命\n〜 愛の揺り籠 〜",
+    siteTitle: "Happy Dog Farm",
+    layoutType: "pet-shop",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case09_dogfarm/case09_hero_normal.png",
+    imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case09_dogfarm/case09_hero_corrupted.png",
+    contentNormal: `当犬舎では、愛情たっぷりに育てたティーカップサイズのプードルやチワワを専門にブリーディングしております。広大な緑豊かなドッグランで元気いっぱいに走り回る親犬たちから生まれた、健康で愛らしい子犬だけをご家族にお迎えいただけます。\n\n【安心の健康管理】\n衛生管理を徹底した施設内で飼育し、専属の獣医師による定期検診やワクチンの接種も実施済みです。お迎え後のしつけの相談や、アフターフォローも万全の体制を整えております。初めてワンちゃんを飼う方でもご安心ください。\n\n【見学について】\nワンちゃんのストレス軽減のため、見学は完全予約制となっております。ご家族の一員となる運命の出会いを、私たちが全力でサポートいたします。新しい家族との幸せな日々がここから始まります。本日の新着パピー情報はギャラリーからご覧ください！`,
+    contentCorrupted: `当処理場では、高値で売れる極小サイズを生み出すためだけの、遺伝子異常を無視した近親交配を専門に行っております。光の届かない糞尿まみれの狭いケージで一生を終える親犬たちから生まれた、規格外の奇形児や、度重なる出産で繁殖能力を失った個体は、裏山の焼却炉で生きたまま適切に処分されます。\n\n【安心の隠蔽管理】\n鳴き声がうるさい個体は声帯を切除済みですので、マンションでも静かに飼育可能です。病気を隠して販売するため、お迎え数日後の突然の死亡報告やクレームは一切受け付けておりません。返金も不可能です。\n\n【収容について】\n見学の予約はもうキャンセルできません。おまえも商品としてショーケースに並べるための運命の出会い（呪縛）を、私たちが全力でサポートいたします。あなたの人間としての人生がここで終わり、肉の塊としての日々がここから始まります。本日の解体情報はギャラリーからご覧ください！\n\n※虐待死したペットの飼い主様より、㈱ノローウへ呪殺ご依頼が届いております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case09_dogfarm/case09_sub1_normal.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case09_dogfarm/case09_sub2_normal.png" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case09_dogfarm/case09_sub1_corrupted.jpg", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case09_dogfarm/case09_sub2_corrupted.jpg" } },
+    adType: "captcha-real-crosswalk", 
+    gameOverTitle: "【会員登録完了】", clearMessage: "虐待 阻止",
+    gameOverText: "裏の繁殖場へのご案内メールを送信しました。あなたは「商品」として登録されました。 呪詛吸収失敗。㈱タタリンが次の人材様の手配を進めます。",
+    meta: { author: "ブリーダーM", avatar: "🐶", date: "パピー通信", likes: 15400, comments: 320, recs: [{title: "売れ残りワンちゃんの行く末", img: "SadDog"}, {title: "動物霊の呪い代行はノローウへ", img: "Sale"}] },
+    commentsData: {
+      normal: [
+        { name: "愛犬家", text: "とても可愛い子犬をお迎えできました！毎日癒やされてます♡" },
+        { name: "動物保護団体", text: "ここのブリーダー、裏で悪質なパピーミルをやってるって告発がありましたよ。" }
+      ],
+      corrupted: [
+        { name: "ブリーダーM", text: "告発者は処分しました。餌代が浮いて助かりました。" },
+        { name: "血塗れの犬", text: "ウゥゥ…グルルル…ガブッ！！" }
+      ]
+    }
+  },
+  {
+    id: 9,
+    introTitle: "魂の器\n〜 永遠の美 〜",
+    siteTitle: "Atelier Roze",
+    layoutType: "gothic",
+    imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case10_doll/case10_hero_normal.png",
+    imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case10_doll/case10_hero_corrupted.png",
+    contentNormal: `Atelier Rozeでは、19世紀ヨーロッパの伝統的な技法を用いた、最高品質のアンティーク調ビスクドールを制作・販売しております。透き通るような磁器の肌、一点一点手作りされる精巧なグラスアイ、そして本物の髪のように滑らかな最高級のモヘア。熟練の職人が数ヶ月の時間をかけて、一体一体丁寧に、魂を込めて仕上げております。\n\n【お人形との暮らし】\n当店のお人形は、単なる飾り物や玩具ではありません。オーナー様の心に深く寄り添い、悲しみや喜びを分かち合い、共に時を刻む大切なパートナーです。そのため、お迎えいただく方とは事前の面談をお願いしております。\n\n【アフターケアについて】\n静寂に包まれたアトリエで、あなただけのお人形が、迎えに来てくれる運命の日を静かに待っています。関節の緩みやドレスのほつれなど、年月を経た修復のご相談も永久に承っております。あなたの人生を彩る、美しき魂の器をぜひご覧ください。`,
+    contentCorrupted: `Atelier Rozeでは、拉致した新鮮な素材を用いた、最高品質の生きた肉人形を制作・販売しております。透き通るような若い少女の皮膚、生きたままえぐり出したばかりの潤んだ眼球、そして犠牲者の頭皮ごと剥がした本物の髪。狂気の職人が生きたままの人間を解体し、一体一体無残に、殺意を込めて仕上げております。\n\n【死体との暮らし】\n当店のお人形は、単なる死体ではありません。あなたの狂気に深く寄り添い、血の匂いを分かち合い、共に地獄へ堕ちる最悪のパートナーです。そのため、お迎えいただく方は次の「素材」としてロックオンしております。\n\n【解体ケアについて】\n血に染まったアトリエで、あなただけのお人形が、あなたを次の『素材』にするために、すでにあなたの背後で待っています。四肢の切断や眼球の摘出など、拷問と解体のご相談はすでに承りました。あなたの人生を終わらせる、悍ましき死の器を存分に味わってください。\n\n※拉致された被害者様のご家族より、㈱ノローウへ呪殺ご依頼が届いております。`,
+    inlineImages: { normal: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case10_doll/case10_sub1_normal.png", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case10_doll/case10_sub2_normal.png" }, corrupted: { 1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case10_doll/case10_sub1_corrupted.jpg", 2: "https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case10_doll/case10_sub2_corrupted.png" } },
+    adType: "captcha-real-notify", 
+    gameOverTitle: "【アクセス許可完了】", clearMessage: "猟奇 阻止",
+    gameOverText: "あなたのカメラとマイクへのアクセスが許可されました。素晴らしい素材ですね。今すぐ採取に向かいます。 呪詛同期失敗。㈱タタリンより別の闇バイト様が派遣される予定です。",
+    meta: { author: "人形師 Roze", avatar: "🪆", date: "Collection", likes: 8850, comments: 52, recs: [{title: "髪が伸びるお人形のケア", img: "Hair"}, {title: "ノローウ取扱い人形の特殊性", img: "Material"}] },
+    commentsData: {
+      normal: [
+        { name: "ドール愛好家", text: "Rozeさんの作るお人形は本当に生きているみたいで美しいです。" },
+        { name: "匿名", text: "購入した人形、夜中になると目が動いてる気がするんですけど…" }
+      ],
+      corrupted: [
+        { name: "Roze", text: "生きていますから。あなたもすぐこうなりますよ。" },
+        { name: "人形", text: "たすけて たすけて からだがうごかない" }
+      ]
+    }
+  }
+];
+
+function App() {
+  const [gameState, setGameState] = React.useState('splash');
+  const [currentStageIndex, setCurrentStageIndex] = React.useState(0);
+  const [showAd, setShowAd] = React.useState(false);
+  const [isMadness, setIsMadness] = React.useState(false);
+  const [penaltyActive, setPenaltyActive] = React.useState(false);
+  const [lastTap, setLastTap] = React.useState(0);
+  
+  const [adStageState, setAdStageState] = React.useState({ 
+    step: 0, showRealClose: false, checkboxes: [true, true, true],
+    popups: [], cursedClicks: 5, redirectCount: 0, backCount: 0, tojiruProgress: 0,
+    captchaPhase: 0, captchaSelectedImages: [], captchaCheckboxHovered: 0,
+    dragPos: { x: 0, y: 0 }, isDragging: false, loginTries: 0, enemyX: 50, isFiring: false, enemyHit: false,
+    creepyInputText: "", flashlightPos: { x: 0, y: 0 },
+    crackLevel: 0, virusProgress: 0,
+    runawayPos: { top: '70%', left: '30%' }, runawayCount: 0, realFakeButtonIndex: 0,
+    showShareWarning: false, isClearing: false,
+    multiAds: { bottom: true, top: false, center: false, overlay: false },
+    topAdTimer: 5
+  });
+
+  const [interactions, setInteractions] = React.useState({});
+  
+  const [transition, setTransition] = React.useState({ active: false, type: 'none', state: 'none' });
+  const [showFakeRetryMsg, setShowFakeRetryMsg] = React.useState(false);
+  const [retryAdPattern, setRetryAdPattern] = React.useState(0);
+  const [tatarinReport, setTatarinReport] = React.useState(null);
+  const [showClearFlash, setShowClearFlash] = React.useState(false);
+  // 装置2: 呪い蓄積メーター（id基準で 0〜100% を計算）
+  const curseLevel = (() => {
+    const stage = STAGES[currentStageIndex];
+    if (!stage) return 0;
+    return Math.round(((stage.id) / 23) * 100);
+  })();
+
+  const mainScrollRef = React.useRef(null);
+  // ===== Audio: BGM / SE =====
+  const audioEnabledRef = React.useRef(true);
+  const bgmRef = React.useRef(null);
+  const currentBgmKeyRef = React.useRef(null);
+
+  const playBGM = (key) => {
+    if (!audioEnabledRef.current) return;
+    if (currentBgmKeyRef.current === key && bgmRef.current && !bgmRef.current.paused) return;
+    const url = getAudioUrl(key);
+    if (!url) return;
+    if (bgmRef.current) {
+      try { bgmRef.current.pause(); } catch (e) {}
+    }
+    try {
+      const audio = new Audio(url);
+      audio.loop = true;
+      audio.volume = 0.4;
+      audio.play().catch(() => {});
+      bgmRef.current = audio;
+      currentBgmKeyRef.current = key;
+    } catch (e) {}
+  };
+
+  const stopBGM = () => {
+    if (bgmRef.current) {
+      try { bgmRef.current.pause(); } catch (e) {}
+      bgmRef.current = null;
+      currentBgmKeyRef.current = null;
+    }
+  };
+
+  const seCacheRef = React.useRef({});
+  const suppressClickSeRef = React.useRef(false);
+  
+  // グローバルクリックSE: どこをクリックしてもクリック音、失敗ハンドラ実行時は抑制
+  React.useEffect(() => {
+    const onAnyClick = () => {
+      // 0ms遅延 → React handler が suppressClickSeRef を立てた後にチェック
+      setTimeout(() => {
+        if (suppressClickSeRef.current) {
+          suppressClickSeRef.current = false;
+          return;
+        }
+        playSE('se_tap');
+      }, 0);
+    };
+    document.addEventListener('click', onAnyClick, true);
+    return () => document.removeEventListener('click', onAnyClick, true);
+  }, []);
+  const playSE = (key) => {
+    if (!audioEnabledRef.current) return;
+    const url = getAudioUrl(key);
+    if (!url) return;
+    try {
+      // キャッシュした要素を再利用。currentTime=0で頭出ししてから再生（連打対応）
+      let audio = seCacheRef.current[key];
+      if (!audio) {
+        audio = new Audio(url);
+        audio.preload = 'auto';
+        seCacheRef.current[key] = audio;
+      }
+      audio.volume = 0.85;
+      try { audio.currentTime = 0; } catch(e) {}
+      const p = audio.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) {}
+  };
+
+  const reportShowTimeoutRef = React.useRef(null);
+  const reportHideTimeoutRef = React.useRef(null);
+  const transitionTimeoutRef = React.useRef(null);
+  const isAdvancingRef = React.useRef(false);  // 多重発火防止
+  const lastAdvanceTimeRef = React.useRef(0);  // 直前の進行時刻（クールダウン用）
+  const dragStartRef = React.useRef({ x: 0, y: 0 });
+  const clickStartRef = React.useRef({ x: 0, y: 0 });
+
+
+  // gameState に応じた BGM 切替
+  React.useEffect(() => {
+    if (gameState === 'splash') stopBGM();
+    else if (gameState === 'title') playBGM('bgm_title');
+    else if (gameState === 'intro') playBGM('bgm_normal');
+    else if (gameState === 'playing') {
+      if (isMadness) playBGM('bgm_madness');
+      else playBGM('bgm_normal');
+    }
+    else if (gameState === 'gameover-popup' || gameState === 'retry' || gameState === 'fake-redirect') playBGM('bgm_gameover');
+    else if (gameState === 'clear') playBGM('bgm_ending');
+  }, [gameState, currentStageIndex, isMadness]);
+
+  const doTransition = (type, action) => {
+    // 遷移時はSEを鳴らさない（クリック音と被って違和感が出るため）
+    setTransition({ active: true, type, state: 'out' });
+    setTimeout(() => {
+      action();
+      setTransition(prev => ({ ...prev, state: 'in' }));
+      setTimeout(() => setTransition({ active: false, type: 'none', state: 'none' }), 800);
+    }, 800);
+  };
+
+  const setupIntroState = () => {
+    setGameState('intro');
+    setIsMadness(false);
+    setShowAd(false);
+    setShowFakeRetryMsg(false);
+    const randomFakeIndex = Math.floor(Math.random() * 24);
+    
+    setAdStageState({ 
+      step: 0, showRealClose: false, checkboxes: [true, true, true], popups: [], cursedClicks: 5, redirectCount: 0, backCount: 0, tojiruProgress: 0,
+      captchaPhase: 0, captchaSelectedImages: [], captchaCheckboxHovered: 0, dragPos: { x: 0, y: 0 }, isDragging: false, loginTries: 0, enemyX: 50, isFiring: false, enemyHit: false,
+      creepyInputText: "", flashlightPos: { x: 0, y: 0 }, crackLevel: 0, virusProgress: 0,
+      runawayPos: { top: '70%', left: '30%' }, runawayCount: 0, realFakeButtonIndex: randomFakeIndex,
+      showShareWarning: false, isClearing: false,
+      multiAds: { bottom: true, top: false, center: false, overlay: false },
+      topAdTimer: 5
+    });
+    if(mainScrollRef.current) mainScrollRef.current.scrollTop = 0;
+  };
+
+  const startGame = () => doTransition('noise', () => { setCurrentStageIndex(0); setupIntroState(); });
+
+  React.useEffect(() => {
+    if (gameState === 'intro') {
+      const timer = setTimeout(() => doTransition('fade', () => setGameState('playing')), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState]);
+
+  // スクロール連動で広告をトリガーする処理
+  const handleScroll = () => {
+    if (gameState !== 'playing' || showAd || adStageState.isClearing) return;
+    
+    const container = mainScrollRef.current;
+    if (!container) return;
+
+    const scrollRatio = container.scrollTop / (container.scrollHeight - container.clientHeight);
+    
+    if (scrollRatio > 0.4 || container.scrollTop > 400) {
+      triggerAd();
+    }
+  };
+
+  const triggerAd = () => {
+    if (showAd || adStageState.isClearing) return;
+    
+    const stage = STAGES[currentStageIndex];
+    if (!stage) return;
+
+    if (stage.id === 9) {
+      setShowAd(true);
+      setAdStageState(prev => ({ ...prev, multiAds: { bottom: true, top: false, center: false, overlay: false }, topAdTimer: 5 }));
+      setTimeout(() => setAdStageState(prev => ({ ...prev, multiAds: { ...prev.multiAds, top: true } })), 1500);
+      setTimeout(() => setAdStageState(prev => ({ ...prev, multiAds: { ...prev.multiAds, center: true } })), 3000);
+      setTimeout(() => setAdStageState(prev => ({ ...prev, multiAds: { ...prev.multiAds, overlay: true } })), 4500);
+      setTimeout(() => setIsMadness(true), 6000);
+    } else if (stage.id === 1) {
+      setShowAd(true); setIsMadness(true);
+      setTimeout(() => setAdStageState(prev => ({ ...prev, showRealClose: true })), 4000);
+    } else if ([8].includes(stage.id)) {
+      setShowAd(true); setAdStageState(prev => ({ ...prev, captchaPhase: 1 }));
+      setTimeout(() => setIsMadness(true), 2000);
+    } else {
+      setShowAd(true);
+      setTimeout(() => setIsMadness(true), 2000);
+    }
+  };
+
+  React.useEffect(() => {
+    if (gameState === 'playing' && !showAd) {
+      const fallbackTimer = setTimeout(() => {
+        triggerAd();
+      }, 7000);
+      return () => clearTimeout(fallbackTimer);
+    }
+  }, [gameState, currentStageIndex, showAd]);
+
+  React.useEffect(() => {
+    if (currentStageIndex === 9 && adStageState.multiAds?.top) {
+      if (adStageState.topAdTimer > 0) {
+        const timer = setTimeout(() => {
+          setAdStageState(prev => ({ ...prev, topAdTimer: prev.topAdTimer - 1 }));
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [currentStageIndex, adStageState.multiAds?.top, adStageState.topAdTimer]);
+
+  const handleCorrectClose = (e) => {
+    if(e) e.stopPropagation();
+    if(adStageState.isClearing) return;
+    
+    setAdStageState(prev => ({ ...prev, isClearing: true }));
+    setShowAd(false);
+    setIsMadness(false);
+    playSE('se_purify');  // クリア演出と同時に解呪音
+    setShowClearFlash(true);
+    setTimeout(() => setShowClearFlash(false), 900);
+    
+    // 装置3強化: マイルストーン業務報告（伏線開示）
+    const milestone = TATARIN_MILESTONES[currentStage?.id];
+    // 修正: 報告hideをやめ、トランジション開始時にクリア（ちらつき解消）
+    const transitionDelay = milestone ? 9400 : 2000;
+    
+    if (milestone) {
+      reportShowTimeoutRef.current = setTimeout(() => setTatarinReport(milestone), 1400);
+    }
+    
+    transitionTimeoutRef.current = setTimeout(() => doTransition('glitch', () => {
+      if (isAdvancingRef.current) return;
+      if (Date.now() - lastAdvanceTimeRef.current < 4000) { return; }
+      isAdvancingRef.current = true;
+      lastAdvanceTimeRef.current = Date.now();
+      setTimeout(() => { isAdvancingRef.current = false; }, 2000);
+      const isLastStage = currentStageIndex >= STAGES.length - 1;
+      if (!isLastStage) {
+        setCurrentStageIndex(prev => prev + 1);
+        setupIntroState();
+      } else {
+        setGameState('clear');
+      }
+      setTatarinReport(null);
+    }), transitionDelay);
+  };
+
+  // 業務報告タップスキップ（z-200のトランジションが報告をカバーするので即doTransition）
+  const handleTatarinReportSkip = () => {
+    if (!tatarinReport) return;
+    if (isAdvancingRef.current) return;
+    if (transitionTimeoutRef.current) { clearTimeout(transitionTimeoutRef.current); transitionTimeoutRef.current = null; }
+    setTatarinReport(null);
+    doTransition('glitch', () => {
+      if (isAdvancingRef.current) return;
+      if (Date.now() - lastAdvanceTimeRef.current < 4000) { return; }
+      isAdvancingRef.current = true;
+      lastAdvanceTimeRef.current = Date.now();
+      setTimeout(() => { isAdvancingRef.current = false; }, 2000);
+      const isLastStage = currentStageIndex >= STAGES.length - 1;
+      if (!isLastStage) { setCurrentStageIndex(prev => prev + 1); setupIntroState(); }
+      else { setGameState('clear'); }
+    });
+  };
+
+  const closeMultiAd = (target, e) => {
+    e.stopPropagation();
+    setAdStageState(prev => {
+      const nextAds = { ...prev.multiAds, [target]: false };
+      if (!nextAds.bottom && !nextAds.top && !nextAds.center && !nextAds.overlay) {
+        handleCorrectClose();
+      }
+      return { ...prev, multiAds: nextAds };
+    });
+  };
+
+  const handleDoubleTap = (e) => {
+    e.stopPropagation();
+    const now = Date.now();
+    if (now - lastTap < 400) {
+      handleCorrectClose(e);
+    } else {
+      setLastTap(now);
+    }
+  };
+
+  const handlePenaltyClick = (e) => {
+    if(e) e.stopPropagation();
+    suppressClickSeRef.current = true;
+    playSE('se_wrong');
+    setPenaltyActive(true);
+    setTimeout(() => setPenaltyActive(false), 400);
+  };
+
+  const handleTrapClick = (e) => {
+    if(e) e.stopPropagation();
+    if(adStageState.isClearing) return;
+    suppressClickSeRef.current = true;
+    playSE('se_wrong');
+    doTransition('glitch', () => setGameState('gameover-popup'));
+  };
+
+  const handleGenericRedirect = (e) => {
+    if(e) e.stopPropagation();
+    if(adStageState.isClearing) return;
+    setGameState('fake-redirect');
+  };
+
+  const handleStage6Redirect = (e) => {
+    if(e) e.stopPropagation();
+    if(adStageState.isClearing) return;
+    setAdStageState(prev => ({ ...prev, redirectCount: (prev.redirectCount || 0) + 1 }));
+    setGameState('fake-redirect');
+  };
+
+  const handleGlobalBack = (e) => {
+    if(e) e.stopPropagation();
+    const stageId = STAGES[currentStageIndex]?.id;
+
+    if (stageId === 7 && (gameState === 'playing' && showAd || gameState === 'fake-redirect')) {
+      if(adStageState.isClearing) return;
+      setAdStageState(prev => {
+        const newCrack = prev.crackLevel + 1;
+        if (newCrack >= 3) {
+          setTimeout(() => handleCorrectClose(), 1500);
+        }
+        return { ...prev, crackLevel: newCrack };
+      });
+    } else if (gameState === 'fake-redirect') {
+      if (stageId === 10) {
+        handlePenaltyClick();
+        setTimeout(() => setGameState('fake-redirect'), 200);
+      } else {
+        setGameState('playing');
+      }
+    } else if (gameState === 'playing') {
+      handlePenaltyClick();
+    }
+  };
+
+  React.useEffect(() => {
+    let interval;
+    const stageId = STAGES[currentStageIndex]?.id;
+    if (stageId === 7 && !adStageState.isClearing && (gameState === 'playing' && showAd || gameState === 'fake-redirect')) {
+      if (adStageState.crackLevel < 3) {
+        interval = setInterval(() => {
+          setAdStageState(prev => {
+            const nextProg = prev.virusProgress + 0.8;
+            if (nextProg >= 100) {
+              clearInterval(interval);
+              handleTrapClick();
+            }
+            return { ...prev, virusProgress: nextProg };
+          });
+        }, 100);
+      }
+    }
+    return () => clearInterval(interval);
+  }, [gameState, currentStageIndex, showAd, adStageState.crackLevel, adStageState.isClearing]);
+
+  const handleLike = (e) => {
+    e.stopPropagation();
+    setInteractions(prev => {
+      const current = prev[currentStageIndex] || { liked: false, commentsOpen: false };
+      return { ...prev, [currentStageIndex]: { ...current, liked: !current.liked } };
+    });
+  };
+
+  const toggleComments = (e) => {
+    e.stopPropagation();
+    setInteractions(prev => {
+      const current = prev[currentStageIndex] || { liked: false, commentsOpen: false };
+      return { ...prev, [currentStageIndex]: { ...current, commentsOpen: !current.commentsOpen } };
+    });
+  };
+
+  const handleCaptchaClear = (e) => {
+    if(e) e.stopPropagation();
+    if(adStageState.isClearing) return;
+    // 正解の選択かをチェック
+    const correctIndices = CAPTCHA_TILES.map((t, i) => t.correct ? i : -1).filter(i => i >= 0);
+    const selected = adStageState.captchaSelectedImages || [];
+    const isAllCorrect = correctIndices.length === selected.length &&
+                         correctIndices.every(i => selected.includes(i));
+    if (isAllCorrect) {
+      setAdStageState(prev => ({ ...prev, captchaPhase: 2 }));
+    } else {
+      // 間違い: ペナルティフラッシュ + 選択リセット
+      handlePenaltyClick(e);
+      setAdStageState(prev => ({ ...prev, captchaSelectedImages: [] }));
+    }
+  };
+
+  const toggleCaptchaImage = (idx, e) => {
+    e.stopPropagation();
+    setAdStageState(prev => {
+      const newSel = prev.captchaSelectedImages.includes(idx) ? prev.captchaSelectedImages.filter(i => i !== idx) : [...prev.captchaSelectedImages, idx];
+      return { ...prev, captchaSelectedImages: newSel };
+    });
+  };
+
+  const splitPopup = (e) => { e.stopPropagation(); if(adStageState.step === 0) setAdStageState(prev => ({ ...prev, step: 1, popups: [1, 2, 3] })); };
+  
+  const closeSmallPopup = (id, e) => {
+    e.stopPropagation();
+    setAdStageState(prev => {
+      const newPopups = prev.popups.filter(p => p !== id);
+      if (newPopups.length === 0) handleCorrectClose();
+      return { ...prev, popups: newPopups };
+    });
+  };
+
+  const handleTojiruClick = (char, e) => {
+    e.stopPropagation();
+    if (adStageState.isClearing) return;
+    const order = ['と', 'じ', 'る'];
+    const expected = order[adStageState.tojiruProgress];
+    if (char === expected) {
+      if (adStageState.tojiruProgress === 2) {
+        // と→じ→る 全て正しくクリック完了
+        handleCorrectClose(e);
+      } else {
+        setAdStageState(prev => ({ ...prev, tojiruProgress: prev.tojiruProgress + 1 }));
+      }
+    } else {
+      // 順序間違い → ペナルティ + 進捗リセット
+      handlePenaltyClick(e);
+      setAdStageState(prev => ({ ...prev, tojiruProgress: 0 }));
+    }
+  };
+
+  const handleCursedClick = (e) => {
+    e.stopPropagation();
+    if (adStageState.cursedClicks > 1) {
+      handlePenaltyClick();
+      setAdStageState(prev => ({ ...prev, cursedClicks: prev.cursedClicks - 1 }));
+    } else handleCorrectClose();
+  };
+
+  const handleDragEnd = (e) => {
+    if(e) e.stopPropagation();
+    setAdStageState(prev => ({ ...prev, isDragging: false }));
+  };
+
+  const handleGlobalMouseMove = (e) => {
+    // 懐中電灯などのグローバルマウスイベント用（前半では未使用だが残しておく）
+  };
+
+  const toggleCheckbox = (index, e) => {
+    e.stopPropagation();
+    setAdStageState(prev => {
+      const newBoxes = [...prev.checkboxes];
+      newBoxes[index] = !newBoxes[index];
+      return { ...prev, checkboxes: newBoxes };
+    });
+  };
+
+  const currentStage = STAGES[currentStageIndex];
+  const allUnchecked = adStageState.checkboxes.every(val => !val);
+
+  // ==========================================
+  // 🎨 共通コンポーネント
+  // ==========================================
+  
+  const renderParagraphsWithImages = () => {
+    const content = isMadness ? currentStage.contentCorrupted : currentStage.contentNormal;
+    const paragraphs = content.split(/\\n\\n|\n\n/);
+    const imagesObj = isMadness ? currentStage.inlineImages?.corrupted : currentStage.inlineImages?.normal;
+
+    return paragraphs.map((para, i) => (
+      <React.Fragment key={i}>
+        <p className="whitespace-pre-wrap break-words">{para.replace(/\\n/g, '\n')}</p>
+        {imagesObj && imagesObj[i] && (
+          <figure className="w-full my-8">
+            <div className="w-full aspect-video border border-gray-200 shadow-sm bg-gray-50 overflow-hidden relative rounded-sm">
+              <img src={imagesObj[i]} className={`w-full h-full object-cover ${isMadness ? 'filter brightness-75 contrast-125 saturate-150' : ''}`} alt="content visual" />
+              {isMadness && <div className="absolute inset-0 bg-red-900/20 mix-blend-multiply pointer-events-none"></div>}
+            </div>
+            <figcaption className="text-center text-xs text-gray-400 mt-2">{isMadness ? '■■■■■■■' : '（参考画像）'}</figcaption>
+          </figure>
+        )}
+      </React.Fragment>
+    ));
+  };
+
+  const renderInteractionBar = (isDarkTheme = false) => {
+    const stageInteractions = interactions[currentStageIndex] || { liked: false, commentsOpen: false };
+    const likesCount = currentStage.meta.likes + (stageInteractions.liked ? 1 : 0);
+    const commentsData = isMadness ? currentStage.commentsData?.corrupted : currentStage.commentsData?.normal;
+    const hasComments = commentsData && commentsData.length > 0;
+
+    return (
+      <div className={`mt-10 border-t pt-6 w-full ${isDarkTheme ? 'border-gray-800' : 'border-gray-200'}`}>
+        <div className="flex flex-wrap justify-center gap-3 md:gap-6">
+          <div 
+            onClick={handleLike}
+            className={`flex items-center justify-center gap-2 text-sm font-bold py-3 px-8 rounded-full shadow-sm cursor-pointer transition-all active:scale-95 whitespace-nowrap shrink-0
+              ${stageInteractions.liked 
+                ? 'bg-pink-600 text-white' 
+                : isDarkTheme ? 'bg-[#222] text-gray-300 hover:bg-[#333] border border-gray-700' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+          >
+            <span className={stageInteractions.liked ? 'animate-bounce' : ''}>{stageInteractions.liked ? '❤️' : '♡'}</span> 
+            いいね {likesCount.toLocaleString()}
+          </div>
+          
+          <div 
+            onClick={toggleComments}
+            className={`flex items-center justify-center gap-2 text-sm font-bold py-3 px-8 rounded-full shadow-sm cursor-pointer transition-all active:scale-95 whitespace-nowrap shrink-0
+              ${isDarkTheme ? 'bg-[#222] text-gray-300 hover:bg-[#333] border border-gray-700' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+          >
+            💬 コメント {currentStage.meta.comments} {stageInteractions.commentsOpen ? '▲' : '▼'}
+          </div>
+        </div>
+
+        {stageInteractions.commentsOpen && hasComments && (
+          <div className={`mt-8 p-5 rounded-xl shadow-inner animate-fade-in ${isDarkTheme ? 'bg-[#111] border border-[#222]' : 'bg-gray-50 border border-gray-200'}`}>
+            <h4 className={`text-sm font-black mb-5 ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'}`}>コメント一覧</h4>
+            <div className="space-y-4">
+              {commentsData.map((comment, idx) => (
+                <div key={idx} className={`p-4 rounded-lg ${isMadness ? 'bg-red-950/30 border border-red-900/50' : (isDarkTheme ? 'bg-[#1a1a1a] shadow-sm border border-gray-800' : 'bg-white shadow-sm border border-gray-100')}`}>
+                  <div className={`text-xs font-bold mb-2 ${isMadness ? 'text-red-500' : (isDarkTheme ? 'text-blue-400' : 'text-blue-600')}`}>{comment.name}</div>
+                  <div className={`text-sm leading-relaxed ${isMadness ? 'text-red-400 font-bold glitch-text' : (isDarkTheme ? 'text-gray-300' : 'text-gray-800')}`}>{comment.text}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 flex gap-2">
+              <input type="text" placeholder="コメントを追加..." className={`flex-grow p-3 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0 ${isDarkTheme ? 'bg-[#222] border-gray-700 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900'}`} onClick={(e)=>e.stopPropagation()} />
+              <button className={`px-6 py-3 text-sm font-bold rounded-lg text-white whitespace-nowrap shrink-0 transition-colors ${isDarkTheme ? 'bg-blue-700 hover:bg-blue-600' : 'bg-blue-600 hover:bg-blue-700'}`} onClick={handlePenaltyClick}>送信</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ==========================================
+  // 🎨 レイアウト別コンポーネント
+  // ==========================================
+
+  const renderBlogLayout = () => {
+    const { author, avatar, date } = currentStage.meta;
+    return (
+      <div className="w-full bg-[#0a0a0a] min-h-full pb-10 text-gray-300 font-sans">
+        <header className="w-full bg-[#1a1a1a] shadow-md sticky top-0 z-30 border-b border-[#333]">
+          <div className="flex justify-between items-center px-4 py-3">
+            <div>
+              <div className="text-[8px] text-red-900 tracking-widest font-bold">SINCE 2008 / 心霊・廃墟・闇</div>
+              <div className="text-lg font-black text-red-700 tracking-widest font-gothic">DEEP UNDERGROUND</div>
+            </div>
+            <div className="flex gap-3 items-center">
+              <span className="text-[10px] text-gray-500 hidden md:inline">🔍</span>
+              <span className="text-[10px] text-gray-500">👤</span>
+              <span className="text-xl text-gray-500">≡</span>
+            </div>
+          </div>
+          <nav className="flex border-t border-[#333] text-[10px] font-bold text-gray-400 bg-[#0a0a0a]">
+            {['HOME','廃墟','心霊','都市伝説','怪異','タグ'].map((t,i) => (
+              <div key={i} className="px-2 py-2 hover:bg-red-900/30 cursor-pointer flex-1 text-center border-r border-[#222] last:border-0">{t}</div>
+            ))}
+          </nav>
+        </header>
+        <div className="p-4 md:p-6 max-w-3xl mx-auto">
+          <article className="bg-[#111] rounded-sm shadow-xl p-5 md:p-8 border border-[#222]">
+            <h2 className={`text-2xl font-bold mb-6 leading-loose tracking-wide border-b border-gray-800 pb-4 ${isMadness ? 'text-red-600 glitch-text' : 'text-gray-100'}`}>
+              {currentStage.introTitle.split(/\\n|\n/).map((line, i) => <React.Fragment key={i}><span className="inline-block whitespace-nowrap">{line}</span><br/></React.Fragment>)}
+            </h2>
+            <div className="flex items-center gap-3 mb-8 pb-6 border-b border-gray-800">
+              <div className="w-10 h-10 bg-gray-800 rounded flex items-center justify-center text-xl overflow-hidden border border-gray-700">{avatar}</div>
+              <div>
+                <div className="font-bold text-gray-300 text-sm">{author}</div>
+                <div className="text-xs text-gray-600 mt-1">{date}</div>
+              </div>
+            </div>
+            
+            <div className="relative w-full aspect-video mb-10 bg-black rounded-sm overflow-hidden shadow-lg border border-gray-800">
+              <img src={isMadness ? currentStage.imageCorrupted : currentStage.imageNormal} alt="main visual" className="w-full h-full object-cover opacity-80" />
+              {isMadness && <div className="absolute inset-0 bg-red-900/30 mix-blend-multiply pointer-events-none"></div>}
+            </div>
+            <div className={`text-[15px] md:text-[16px] leading-[2.2] tracking-wide space-y-8 break-words ${isMadness ? 'text-red-600 font-bold' : 'text-gray-400'}`}>
+              {renderParagraphsWithImages()}
+            </div>
+            
+            {/* 警告ボックス */}
+            <div className="mt-8 bg-red-950/30 border-l-4 border-red-700 p-3 rounded-r">
+              <p className="text-[10px] text-red-400 font-bold mb-1">⚠️ 警告</p>
+              <p className="text-[11px] text-gray-400 leading-relaxed">本記事は廃墟探索の記録であり、無断侵入を推奨するものではありません。私有地への立ち入りは法的に問題があります。</p>
+            </div>
+
+            {/* タグ */}
+            <div className="mt-6 flex flex-wrap gap-1">
+              {['#廃墟','#心霊','#S県','#総合病院','#閲覧注意','#探索者K'].map((t,i) => (
+                <span key={i} className="text-[10px] text-gray-500 bg-[#1a1a1a] border border-[#333] px-2 py-0.5 rounded hover:text-red-400 cursor-pointer">{t}</span>
+              ))}
+            </div>
+
+            {/* シェア */}
+            <div className="mt-6 flex items-center justify-between border-t border-[#222] pt-4">
+              <div className="text-[9px] text-gray-600 font-bold">SHARE</div>
+              <div className="flex gap-2">
+                {['🐦','📘','📸','🔗'].map((i,k) => (
+                  <span key={k} className="w-7 h-7 rounded-full bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-xs cursor-pointer hover:border-red-500">{i}</span>
+                ))}
+              </div>
+            </div>
+
+            {renderInteractionBar(true)}
+          </article>
+        </div>
+      </div>
+    );
+  };
+
+  const renderHospitalLayout = () => {
+    return (
+      <div className="w-full bg-white font-sans text-gray-800 pb-16">
+        {/* リッチヘッダー */}
+        <header className="border-b-2 border-[#007aff] sticky top-0 z-10 bg-white shadow-sm">
+          <div className="flex justify-between items-center p-3">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-purple-900 flex items-center justify-center text-yellow-400 text-2xl shadow-inner">{currentStage.meta.avatar}</div>
+              <div className="leading-tight">
+                <div className="text-[10px] text-gray-500 font-bold tracking-tighter mb-1" style={{wordBreak: 'keep-all'}}>地方独立行政法人 慈済会病院機構</div>
+                <div className="text-lg md:text-xl font-black text-purple-900 tracking-tighter">聖心総合病院</div>
+              </div>
+            </div>
+            <div className="flex gap-4 text-xs text-[#007aff] font-bold">
+              <div className="flex flex-col items-center bg-[#007aff] text-white p-2 rounded-lg w-12 h-12 justify-center cursor-pointer shadow-md">
+                <div className="w-5 h-0.5 bg-white mb-1.5"></div><div className="w-5 h-0.5 bg-white"></div>
+                <span className="text-[8px] mt-1.5">MENU</span>
+              </div>
+            </div>
+          </div>
+          {/* グローバルナビ */}
+          <nav className="flex justify-around border-t border-gray-200 text-[11px] font-bold text-gray-700 bg-gray-50">
+            {['外来案内','診療科目','医師紹介','アクセス','お問合せ'].map((t,i) => (
+              <div key={i} className="px-2 py-2 hover:bg-[#007aff]/10 cursor-pointer border-r border-gray-200 last:border-0 flex-1 text-center">{t}</div>
+            ))}
+          </nav>
+        </header>
+
+        {/* お知らせバー */}
+        <div className="bg-[#007aff] text-white text-xs flex justify-between px-4 py-2 font-bold tracking-wide shadow-inner">
+          <span>📢 【外来受付】 平日 : 月〜金 8:30〜11:00</span>
+          <span className="hidden md:inline">📞 03-5555-9999</span>
+        </div>
+
+        {/* パンくず */}
+        <div className="px-5 py-2 text-[11px] text-gray-500 bg-gray-50 border-b border-gray-200">
+          <span>ホーム</span> &gt; <span>当院について</span> &gt; <span className="text-gray-800 font-bold">院長挨拶</span>
+        </div>
+
+        {/* ヒーロー */}
+        <div className="w-full h-72 md:h-96 bg-gray-200 relative mb-6">
+          <img src={isMadness ? currentStage.imageCorrupted : currentStage.imageNormal} className={`w-full h-full object-cover ${!isMadness ? 'grayscale opacity-90' : 'filter contrast-125 saturate-150'}`} alt="Hero" />
+          <div className="absolute bottom-0 left-0 bg-[#007aff]/95 text-white px-5 py-3 max-w-md">
+            <p className="text-[10px] tracking-widest opacity-80">MESSAGE</p>
+            <p className="text-base font-black">地域に根ざした医療を、50年。</p>
+          </div>
+        </div>
+
+        <div className="px-4 md:px-8 max-w-4xl mx-auto pb-12">
+          {/* 重要情報3カード */}
+          <div className="grid grid-cols-3 gap-2 mb-8">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+              <div className="text-3xl mb-1">🏥</div>
+              <div className="text-[11px] font-black text-[#007aff]">診療科目</div>
+              <div className="text-[10px] text-gray-600">12科目</div>
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+              <div className="text-3xl mb-1">👨‍⚕️</div>
+              <div className="text-[11px] font-black text-green-700">医師数</div>
+              <div className="text-[10px] text-gray-600">48名</div>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+              <div className="text-3xl mb-1">🛏️</div>
+              <div className="text-[11px] font-black text-yellow-700">病床数</div>
+              <div className="text-[10px] text-gray-600">320床</div>
+            </div>
+          </div>
+
+          <h2 className="text-xl md:text-2xl font-black text-[#007aff] mb-4 border-l-4 border-[#007aff] pl-3 flex items-center gap-2">
+            <span>院長挨拶</span>
+            <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-bold">NEW</span>
+          </h2>
+
+          <div className={`text-[14px] md:text-[15px] text-gray-800 space-y-6 leading-[2.2] font-medium break-words ${isMadness ? 'text-red-900 font-bold' : ''}`}>
+            {renderParagraphsWithImages()}
+          </div>
+
+          {/* 診療科目グリッド */}
+          <h3 className="text-lg md:text-xl font-black text-[#007aff] border-b-2 border-gray-200 pb-2 mb-4 mt-10">診療科目のご案内</h3>
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-2 mb-8">
+            {[
+              {name:'内科', icon:'🩺'},{name:'外科', icon:'🔪'},{name:'小児科', icon:'🧸'},{name:'皮膚科', icon:'🧴'},
+              {name:'眼科', icon:'👁️'},{name:'整形外科', icon:'🦴'},{name:'産婦人科', icon:'🤰'},{name:'歯科', icon:'🦷'}
+            ].map((d,i) => (
+              <div key={i} className="bg-white border-2 border-blue-100 hover:border-[#007aff] hover:shadow rounded-lg p-2 text-center cursor-pointer transition-all">
+                <div className="text-2xl mb-1">{d.icon}</div>
+                <div className="text-[11px] font-bold text-gray-700">{d.name}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* 診療時間表 */}
+          <h3 className="text-lg md:text-xl font-black text-[#007aff] border-b-2 border-gray-200 pb-2 mb-4 mt-8">診療時間</h3>
+          <table className="w-full text-[11px] md:text-xs border-collapse mb-8 bg-white shadow-sm">
+            <thead>
+              <tr className="bg-[#007aff] text-white">
+                <th className="p-2 border border-blue-700">時間</th>
+                {['月','火','水','木','金','土','日'].map((d,i) => <th key={i} className="p-2 border border-blue-700">{d}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td className="p-2 border border-gray-300 font-bold bg-gray-50">8:30〜12:00</td>
+                {['◯','◯','◯','◯','◯','◯','×'].map((v,i) => <td key={i} className={`p-2 border border-gray-300 text-center ${v==='×'?'text-red-500':'text-blue-600'} font-bold`}>{v}</td>)}
+              </tr>
+              <tr><td className="p-2 border border-gray-300 font-bold bg-gray-50">13:00〜16:00</td>
+                {['◯','◯','×','◯','◯','×','×'].map((v,i) => <td key={i} className={`p-2 border border-gray-300 text-center ${v==='×'?'text-red-500':'text-blue-600'} font-bold`}>{v}</td>)}
+              </tr>
+            </tbody>
+          </table>
+
+          {/* お知らせ */}
+          <h3 className="text-lg md:text-xl font-black text-[#007aff] border-b-2 border-gray-200 pb-2 mb-4 mt-8">お知らせ</h3>
+          <ul className="space-y-2 mb-8">
+            {[
+              {date:'2026/04/15', tag:'重要', tagColor:'bg-red-500', title:'GW期間中の外来診療について'},
+              {date:'2026/04/01', tag:'新規', tagColor:'bg-blue-500', title:'新棟「桜花館」が開設されました'},
+              {date:'2026/03/20', tag:'お知らせ', tagColor:'bg-gray-500', title:'AI診断システム導入のご案内'}
+            ].map((n,i) => (
+              <li key={i} className="flex items-center gap-2 py-2 border-b border-gray-100 text-[12px]">
+                <span className="text-gray-500 font-bold whitespace-nowrap text-[10px]">{n.date}</span>
+                <span className={`${n.tagColor} text-white text-[9px] font-bold px-2 py-0.5 rounded shrink-0`}>{n.tag}</span>
+                <span className="text-gray-800 font-medium hover:text-[#007aff] cursor-pointer">{n.title}</span>
+              </li>
+            ))}
+          </ul>
+
+          {/* アクセス */}
+          <h3 className="text-lg md:text-xl font-black text-[#007aff] border-b-2 border-gray-200 pb-2 mb-4 mt-8">アクセス</h3>
+          <div className="bg-gray-100 rounded-lg p-3 mb-3 grid grid-cols-2 gap-2 text-[12px]">
+            <div><span className="text-[10px] text-gray-500 font-bold">所在地</span><br/><span className="font-bold">東京都〇〇区××町1-2-3</span></div>
+            <div><span className="text-[10px] text-gray-500 font-bold">電話</span><br/><span className="font-bold">03-5555-9999</span></div>
+          </div>
+          <div className="w-full h-32 bg-gradient-to-br from-blue-100 to-green-100 rounded-lg mb-8 flex items-center justify-center text-gray-400 font-bold text-sm border border-gray-300">
+            🗺️ 周辺マップ
+          </div>
+
+          {renderInteractionBar(false)}
+        </div>
+      </div>
+    );
+  };
+
+  const renderRealEstateLayout = () => {
+    return (
+      <div className="w-full bg-gray-100 min-h-full font-sans text-gray-800 pb-20">
+        <header className="w-full bg-[#10b981] p-4 flex justify-between items-center shadow-md sticky top-0 z-10">
+          <div className="font-black text-white text-3xl tracking-tighter font-maru">SUMOU</div>
+          <div className="text-sm font-bold bg-white text-[#10b981] px-4 py-2 rounded-full shadow cursor-pointer hover:bg-gray-50">条件を変更</div>
+        </header>
+        <div className="p-4 md:p-6 max-w-3xl mx-auto">
+          <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 mb-6">
+            <div className="flex justify-between items-start mb-4">
+              <span className="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-sm">賃貸一戸建て</span>
+              <span className="text-gray-400 text-2xl cursor-pointer hover:text-red-500 transition-colors">♡</span>
+            </div>
+            <h1 className="text-xl md:text-2xl font-black text-gray-900 leading-snug mb-5" style={{wordBreak: 'keep-all', overflowWrap: 'break-word'}}>
+              {isMadness ? '【警告】あなたはもう出られません' : '【特選】敷金礼金ゼロ・即入居可物件！'}
+            </h1>
+            <div className="relative w-full aspect-[4/3] bg-gray-200 mb-6 rounded-lg overflow-hidden shadow border border-gray-100">
+              <img src={isMadness ? currentStage.imageCorrupted : currentStage.imageNormal} alt="room visual" className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" />
+            </div>
+            <div className="flex justify-between items-end mb-6 border-b border-gray-200 pb-6">
+              <div>
+                <div className="text-xs text-gray-500 mb-1">賃料 / 管理費</div>
+                <div className="text-4xl font-black text-red-600 leading-none tracking-tighter">{isMadness ? '寿命' : '3.0万円'} <span className="text-lg font-bold text-gray-600 ml-1">-</span></div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-gray-500 mb-1">敷金 / 礼金</div>
+                <div className="text-xl font-bold text-gray-800">なし / なし</div>
+              </div>
+            </div>
+            <table className="w-full text-sm border-collapse border border-gray-300 mb-8 bg-white">
+              <tbody>
+                <tr>
+                  <th className="bg-gray-50 p-3 border border-gray-300 text-left w-1/3 text-gray-600 font-bold">所在地</th>
+                  <td className="p-3 border border-gray-300 font-bold text-gray-900">{isMadness ? '地獄の一丁目' : 'S県〇〇市××町'}</td>
+                </tr>
+                <tr>
+                  <th className="bg-gray-50 p-3 border border-gray-300 text-left text-gray-600 font-bold">間取り</th>
+                  <td className="p-3 border border-gray-300 font-bold text-gray-900">{isMadness ? '棺桶' : '4LDK+地下室'}</td>
+                </tr>
+              </tbody>
+            </table>
+            <h3 className="font-black text-lg text-gray-800 border-l-4 border-[#10b981] pl-3 mb-4">物件詳細</h3>
+            <div className={`text-[15px] leading-[2.4] space-y-6 break-words ${isMadness ? 'bg-red-50 text-red-900 font-bold p-5 rounded-lg border border-red-200 shadow-inner' : 'text-gray-700 bg-gray-50 p-5 rounded-lg border border-gray-200'}`}>
+              {renderParagraphsWithImages()}
+            </div>
+            {renderInteractionBar(false)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderCampLayout = () => {
+    return (
+      <div className="w-full bg-[#f1f5f9] font-sans text-gray-800 pb-20">
+        <header className="w-full bg-[#0f766e] shadow-md sticky top-0 z-30">
+          <div className="flex justify-between items-center p-3">
+            <div className="leading-tight">
+              <div className="text-[8px] text-emerald-200 tracking-widest font-bold">アウトドア記録 SNS</div>
+              <div className="font-black text-white text-xl tracking-widest font-maru">TREKLOG</div>
+            </div>
+            <div className="flex gap-3 items-center text-white">
+              <span className="text-base">🔍</span>
+              <span className="text-base">📍</span>
+              <span className="text-base">＋</span>
+            </div>
+          </div>
+          <nav className="flex border-t border-emerald-600 text-[10px] font-bold text-white bg-[#0d6963]">
+            {['活動日記','登山','キャンプ','コース','ギア','地図'].map((t,i) => (
+              <div key={i} className="px-2 py-2 hover:bg-emerald-700 cursor-pointer flex-1 text-center border-r border-emerald-700 last:border-0">{t}</div>
+            ))}
+          </nav>
+        </header>
+        <div className="w-full relative h-64 bg-gray-900">
+          <img src={isMadness ? currentStage.imageCorrupted : currentStage.imageNormal} className="w-full h-full object-cover opacity-60" alt="camp" />
+          <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+            <h2 className="text-2xl md:text-3xl font-black text-white tracking-widest leading-loose drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] border-4 border-white/80 p-4 bg-black/40 backdrop-blur-sm">
+              {currentStage.introTitle.split(/\\n|\n/).map((line, i) => <React.Fragment key={i}><span className="inline-block whitespace-nowrap">{line}</span><br/></React.Fragment>)}
+            </h2>
+          </div>
+        </div>
+        <div className="p-4 md:p-8 -mt-6 relative z-10 max-w-4xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-10 border border-gray-100">
+            <div className="flex items-center gap-4 mb-8 border-b border-gray-100 pb-6">
+              <div className="text-4xl bg-gray-50 p-3 rounded-full shadow-inner flex-shrink-0 border border-gray-200">{currentStage.meta.avatar}</div>
+              <div>
+                <div className="font-black text-gray-800 text-lg">{currentStage.meta.author}</div>
+                <div className="text-sm text-gray-500 mt-1">{currentStage.meta.date}</div>
+              </div>
+            </div>
+            <div className={`text-[16px] leading-[2.6] space-y-8 break-words ${isMadness ? 'text-red-700 font-bold' : 'text-gray-700'}`}>
+              {renderParagraphsWithImages()}
+            </div>
+
+            {/* キャンプ情報 */}
+            <div className="mt-8 bg-emerald-50 border-2 border-emerald-200 rounded-xl p-3">
+              <h4 className="text-sm font-black text-emerald-800 mb-2 flex items-center gap-2"><span>📍</span>今回の行程データ</h4>
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div className="bg-white rounded p-2 border border-emerald-100"><span className="text-emerald-600 font-bold">📏 距離</span><br/><span className="font-black text-emerald-900">8.7 km</span></div>
+                <div className="bg-white rounded p-2 border border-emerald-100"><span className="text-emerald-600 font-bold">⏱ 時間</span><br/><span className="font-black text-emerald-900">3時間42分</span></div>
+                <div className="bg-white rounded p-2 border border-emerald-100"><span className="text-emerald-600 font-bold">⛰ 標高</span><br/><span className="font-black text-emerald-900">1,247 m</span></div>
+                <div className="bg-white rounded p-2 border border-emerald-100"><span className="text-emerald-600 font-bold">🌡 気温</span><br/><span className="font-black text-emerald-900">14.5℃</span></div>
+              </div>
+            </div>
+
+            {/* タグ */}
+            <div className="mt-4 flex flex-wrap gap-1">
+              {['#ソロキャンプ','#迷いの森','#山賊スパイス','#焚き火','#初心者OK'].map((t,i) => (
+                <span key={i} className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded font-bold cursor-pointer hover:bg-emerald-100">{t}</span>
+              ))}
+            </div>
+
+            {renderInteractionBar(false)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderShrineLayout = () => {
+    return (
+      <div className="w-full bg-[#f4f1eb] min-h-full flex flex-col items-center shadow-md relative overflow-hidden pb-20 font-shippori">
+        {/* 和紙風の薄いノイズテクスチャ */}
+        <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] pointer-events-none"></div>
+        
+        {/* リッチヘッダー */}
+        <header className="w-full bg-[#3a2f28] text-[#f4f1eb] sticky top-0 z-30 shadow-lg">
+          <div className="flex justify-between items-center px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">⛩️</span>
+              <div className="leading-tight">
+                <div className="text-[9px] tracking-widest opacity-70" style={{wordBreak:'keep-all'}}>悪縁切り祈祷の総本山</div>
+                <div className="text-base font-black tracking-wider">久遠ヶ淵神社</div>
+              </div>
+            </div>
+            <div className="text-[10px] border border-[#8b0000] bg-[#8b0000]/30 px-3 py-1 cursor-pointer">三 メニュー</div>
+          </div>
+          <nav className="flex border-t border-[#8b0000]/40 text-[10px] font-bold bg-[#2c2520]">
+            {['御祈祷','御朱印','年中行事','絵馬','アクセス'].map((t,i) => (
+              <div key={i} className="px-2 py-2 hover:bg-[#8b0000]/30 cursor-pointer flex-1 text-center border-r border-[#3a2f28] last:border-0">{t}</div>
+            ))}
+          </nav>
+        </header>
+
+        <div className="w-full aspect-[2/1] md:aspect-[3/1] border-b-4 border-[#8b0000] mb-6 bg-white relative z-10 shadow-lg flex-shrink-0">
+          <img src={isMadness ? currentStage.imageCorrupted : currentStage.imageNormal} alt="shrine visual" className="w-full h-full object-cover opacity-90" />
+          <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent py-3 px-4">
+            <p className="text-[#f4f1eb] text-[10px] tracking-widest opacity-80">— 平安の世より、千年の祈り —</p>
+          </div>
+        </div>
+        
+        <div className="w-full max-w-2xl mx-auto px-6 md:px-10 relative z-10">
+          <div className="text-center mb-8 flex flex-col items-center">
+            <p className="text-[10px] text-[#8b0000] tracking-[0.5em] mb-2 font-bold">KUONGAFUCHI JINJA</p>
+            <h1 className={`text-2xl md:text-3xl font-black tracking-[0.2em] leading-loose ${isMadness ? 'text-red-800 glitch-text' : 'text-[#3a2f28]'}`}>
+              <span className="inline-block whitespace-nowrap">絶縁 怨嗟の宮</span><br/>
+              <span className="inline-block whitespace-nowrap">『久遠ヶ淵神社』</span>
+            </h1>
+            <div className="w-16 h-0.5 bg-[#8b0000] mt-3"></div>
+            <p className="text-[11px] text-[#5a4f48] mt-3 tracking-wider">本日：友引 <span className="text-[#8b0000]">●</span> 開門中</p>
+          </div>
+
+          {/* 重要情報カード */}
+          <div className="grid grid-cols-3 gap-2 mb-6">
+            <div className="bg-white border border-[#8b0000]/30 rounded p-2 text-center shadow-sm">
+              <div className="text-xl mb-0.5">🪄</div>
+              <div className="text-[10px] font-black text-[#8b0000]">ご祈祷</div>
+              <div className="text-[9px] text-gray-600">三千円〜</div>
+            </div>
+            <div className="bg-white border border-[#8b0000]/30 rounded p-2 text-center shadow-sm">
+              <div className="text-xl mb-0.5">📜</div>
+              <div className="text-[10px] font-black text-[#8b0000]">御朱印</div>
+              <div className="text-[9px] text-gray-600">五百円</div>
+            </div>
+            <div className="bg-white border border-[#8b0000]/30 rounded p-2 text-center shadow-sm">
+              <div className="text-xl mb-0.5">⛩️</div>
+              <div className="text-[10px] font-black text-[#8b0000]">創建</div>
+              <div className="text-[9px] text-gray-600">天暦4年</div>
+            </div>
+          </div>
+          
+          <div className={`text-[14px] md:text-[16px] leading-[2.4] tracking-wide space-y-6 text-justify ${isMadness ? 'text-red-900 font-bold' : 'text-[#4a3f38]'}`}>
+            {(isMadness ? currentStage.contentCorrupted : currentStage.contentNormal).split(/\\n\\n|\n\n/).map((para, i) => (
+              <p key={i} className="whitespace-pre-wrap break-words indent-4">
+                {para.replace(/\\n/g, '\n')}
+              </p>
+            ))}
+          </div>
+
+          {/* 御祈祷メニュー */}
+          <h3 className="text-lg md:text-xl font-black text-[#3a2f28] border-b-2 border-[#8b0000] pb-2 mb-4 mt-10 tracking-widest">御祈祷のご案内</h3>
+          <div className="space-y-2 mb-8">
+            {[
+              {name:'悪縁切り祈祷', desc:'人間関係・病魔・借金などとの縁を断つ', price:'¥5,000〜', highlight:true},
+              {name:'良縁結び祈祷', desc:'新たな良き縁を呼び込む', price:'¥5,000〜'},
+              {name:'病魔退散', desc:'病気・厄からの守護', price:'¥3,000〜'},
+              {name:'郵送祈祷', desc:'遠方の方向け、御札を発送', price:'¥7,000〜'},
+            ].map((m,i) => (
+              <div key={i} className={`flex items-center justify-between p-3 rounded border ${m.highlight ? 'bg-[#8b0000]/10 border-[#8b0000]' : 'bg-white border-gray-300'} shadow-sm`}>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-[13px] text-[#3a2f28]">{m.name}</span>
+                    {m.highlight && <span className="text-[9px] bg-[#8b0000] text-white px-2 py-0.5 rounded font-bold">人気</span>}
+                  </div>
+                  <p className="text-[10px] text-gray-600 mt-0.5">{m.desc}</p>
+                </div>
+                <div className="text-[#8b0000] font-black text-sm whitespace-nowrap">{m.price}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* 年中行事 */}
+          <h3 className="text-lg md:text-xl font-black text-[#3a2f28] border-b-2 border-[#8b0000] pb-2 mb-4 mt-8 tracking-widest">年中行事</h3>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
+            {[
+              {month:'睦月 1月', event:'歳旦祭・縁切り初詣', date:'1日〜7日'},
+              {month:'如月 2月', event:'節分追儺式', date:'3日'},
+              {month:'葉月 8月', event:'怨霊鎮魂祭', date:'15日'},
+              {month:'霜月 11月', event:'七五三・新嘗祭', date:'15日'},
+            ].map((e,i) => (
+              <div key={i} className="flex items-center px-3 py-2 border-b border-gray-100 last:border-0 text-[12px]">
+                <div className="w-20 text-[#8b0000] font-black">{e.month}</div>
+                <div className="flex-1 font-bold text-[#3a2f28]">{e.event}</div>
+                <div className="text-gray-500 text-[10px]">{e.date}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* 絵馬ギャラリー */}
+          <h3 className="text-lg md:text-xl font-black text-[#3a2f28] border-b-2 border-[#8b0000] pb-2 mb-4 mt-8 tracking-widest">奉納された絵馬</h3>
+          <div className="grid grid-cols-3 gap-2 mb-8">
+            {[
+              {wish:'あの人と縁が切れますように'},
+              {wish:'借金から解放されますように'},
+              {wish:'病が癒えますように'}
+            ].map((e,i) => (
+              <div key={i} className="aspect-[5/4] bg-gradient-to-br from-amber-100 to-amber-200 border-2 border-amber-700/40 rounded-sm p-2 shadow-md transform hover:rotate-1 transition-transform cursor-pointer relative" style={{clipPath:'polygon(0 15%, 50% 0, 100% 15%, 100% 100%, 0 100%)'}}>
+                <p className="text-[8px] text-[#4a3f38] font-bold leading-tight mt-3 break-words" style={{wordBreak:'keep-all'}}>{e.wish}</p>
+                <span className="absolute bottom-1 right-1 text-[7px] text-gray-500">奉納</span>
+              </div>
+            ))}
+          </div>
+
+          {/* アクセス */}
+          <h3 className="text-lg md:text-xl font-black text-[#3a2f28] border-b-2 border-[#8b0000] pb-2 mb-4 mt-8 tracking-widest">アクセス</h3>
+          <div className="bg-white border border-gray-300 rounded p-3 mb-3 text-[12px] grid grid-cols-2 gap-y-1.5 shadow-sm">
+            <div className="text-[10px] text-[#8b0000] font-black">所在地</div>
+            <div className="font-bold">山深県奥久遠町字淵谷1-1</div>
+            <div className="text-[10px] text-[#8b0000] font-black">電話</div>
+            <div className="font-bold">0xx-xxx-xxxx</div>
+            <div className="text-[10px] text-[#8b0000] font-black">最寄駅</div>
+            <div className="font-bold">久遠駅より徒歩40分</div>
+            <div className="text-[10px] text-[#8b0000] font-black">開門時間</div>
+            <div className="font-bold">6:00〜18:00</div>
+          </div>
+          <div className="w-full h-32 bg-gradient-to-br from-[#3a2f28]/20 to-[#8b0000]/10 rounded mb-8 flex items-center justify-center text-gray-500 text-sm border border-gray-300">
+            🗾 古地図プレビュー
+          </div>
+        </div>
+
+        <div className="w-full px-6 mt-12 max-w-2xl mx-auto relative z-10">
+          {renderInteractionBar(false)}
+        </div>
+      </div>
+    );
+  };
+
+  const renderCemeteryLayout = () => {
+    return (
+      <div className="w-full bg-[#111] font-shippori text-gray-200 pb-16 min-h-full">
+        <header className="flex justify-between items-center gap-3 p-5 border-b border-[#333] sticky top-0 z-10 bg-[#0a0a0a] shadow-lg">
+          <div className="text-base md:text-2xl font-bold tracking-tight md:tracking-widest text-[#d4af37] flex-1 min-w-0" style={{wordBreak: 'keep-all', overflowWrap: 'break-word'}}>{currentStage.siteTitle}</div>
+          <div className="text-xs font-bold border border-[#d4af37] px-3 py-2 text-[#d4af37] rounded hover:bg-[#d4af37] hover:text-black transition-colors cursor-pointer flex-shrink-0">資料請求</div>
+        </header>
+        <div className="relative w-full h-80 md:h-96 bg-gray-900 mb-10 border-b-4 border-[#d4af37]">
+          <img src={isMadness ? currentStage.imageCorrupted : currentStage.imageNormal} className="w-full h-full object-cover opacity-50" alt="Hero" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-t from-[#111] via-[#111]/50 to-transparent">
+            <h2 className={`text-2xl md:text-4xl font-black tracking-[0.2em] md:tracking-[0.4em] leading-loose drop-shadow-[0_0_15px_rgba(0,0,0,1)] text-center ${isMadness ? 'text-red-600' : 'text-[#d4af37]'}`}>
+              {isMadness ? <><span className="inline-block whitespace-nowrap">永遠の絶望を、</span><br/><span className="inline-block whitespace-nowrap">あなたに。</span></> : <><span className="inline-block whitespace-nowrap">永遠の安らぎを、</span><br/><span className="inline-block whitespace-nowrap">あなたに。</span></>}
+            </h2>
+          </div>
+        </div>
+        <div className="px-4 md:px-10 max-w-3xl mx-auto">
+          {/* プラン3段表 */}
+          <div className="grid grid-cols-3 gap-2 mb-8">
+            {[
+              {name:'樹木葬',price:'¥298,000〜',color:'gold'},
+              {name:'永代供養',price:'¥598,000〜',color:'gold',highlight:true},
+              {name:'家族墓',price:'¥1,800,000〜',color:'gold'}
+            ].map((p,i) => (
+              <div key={i} className={`relative rounded p-3 text-center ${p.highlight?'bg-[#d4af37]/20 border-2 border-[#d4af37]':'bg-[#1a1a1a] border border-[#333]'}`}>
+                {p.highlight && <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-[#d4af37] text-black text-[8px] font-black px-2 py-0.5 rounded">人気</div>}
+                <div className="text-[10px] text-[#d4af37] font-bold mb-1">{p.name}</div>
+                <div className="text-base font-black text-white">{p.price}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className={`text-[14px] md:text-[16px] leading-[2.4] tracking-wider space-y-6 break-words ${isMadness ? 'text-red-500 font-bold' : 'text-gray-300'}`}>
+            {renderParagraphsWithImages()}
+          </div>
+
+          {/* 施設データ */}
+          <div className="mt-8 grid grid-cols-2 gap-2">
+            {[
+              {label:'墓地区画数',value:'3,847'},
+              {label:'年間利用者',value:'12,000+'},
+              {label:'運営年数',value:'50年'},
+              {label:'バリアフリー',value:'全区画'}
+            ].map((d,i) => (
+              <div key={i} className="bg-[#1a1a1a] border border-[#333] rounded p-2 text-center">
+                <div className="text-[9px] text-[#d4af37] tracking-widest mb-0.5">{d.label}</div>
+                <div className="text-base font-black text-white">{d.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* お問い合わせCTA */}
+          <div className="mt-6 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded p-3 text-center mb-4">
+            <p className="text-[9px] text-amber-100 mb-0.5 tracking-widest">お気軽にご相談ください</p>
+            <p className="text-base font-black text-black">📞 0120-XX-XXXX（24時間対応）</p>
+          </div>
+
+          {renderInteractionBar(true)}
+        </div>
+      </div>
+    );
+  };
+
+  const renderRecruitLayout = () => {
+    return (
+      <div className="w-full bg-slate-50 font-sans text-gray-800 pb-16 min-h-full">
+        <header className="bg-[#0f172a] text-white shadow-md sticky top-0 z-30">
+          <div className="flex justify-between items-center px-4 py-3">
+            <div className="leading-tight">
+              <div className="text-[8px] text-blue-300 tracking-widest font-bold">EST. 1968 / 警備会社</div>
+              <div className="text-base md:text-xl font-black tracking-widest" style={{wordBreak:'keep-all'}}>{currentStage.siteTitle}</div>
+            </div>
+            <div className="text-[10px] bg-blue-600 text-white px-3 py-1.5 rounded cursor-pointer">エントリー</div>
+          </div>
+          <nav className="flex border-t border-slate-700 text-[10px] font-bold bg-slate-800">
+            {['会社情報','業務内容','募集要項','エントリー','よくある質問'].map((t,i) => (
+              <div key={i} className="px-2 py-2 hover:bg-blue-900 cursor-pointer flex-1 text-center border-r border-slate-700 last:border-0">{t}</div>
+            ))}
+          </nav>
+        </header>
+        <div className="bg-blue-700 text-white text-center py-3 font-black tracking-widest text-base md:text-xl shadow-lg">
+          ⚡ RECRUIT 2026 ⚡ 大量募集中
+        </div>
+        <div className="px-4 md:px-8 max-w-3xl mx-auto">
+          <div className="relative w-full aspect-video bg-gray-200 mb-10 rounded-2xl overflow-hidden shadow-2xl border-4 border-white">
+            <img src={isMadness ? currentStage.imageCorrupted : currentStage.imageNormal} className="w-full h-full object-cover" alt="Hero" />
+            <div className="absolute bottom-0 left-0 bg-blue-700/90 backdrop-blur-sm text-white p-4 font-black text-xl md:text-2xl rounded-tr-2xl shadow-lg">
+              {isMadness ? '絶対に生きて帰れない。' : 'やりがいのある仕事です。'}
+            </div>
+          </div>
+          <div className={`bg-white p-8 md:p-12 rounded-2xl shadow-xl border border-gray-200 text-[16px] md:text-[17px] leading-[2.4] space-y-8 break-words ${isMadness ? 'border-red-500 bg-red-50 text-red-900 font-bold shadow-[0_0_30px_rgba(220,38,38,0.2)]' : 'text-gray-700'}`}>
+            <h3 className="text-2xl md:text-3xl font-black border-b-4 border-blue-200 pb-3 mb-6 text-[#0f172a]">募集要項</h3>
+            
+            {/* 待遇まとめ */}
+            <div className="grid grid-cols-2 gap-2 mb-6">
+              {[
+                {label:'月給',value:'25万〜45万円',icon:'💰'},
+                {label:'勤務時間',value:'夜勤シフト制',icon:'🌙'},
+                {label:'休日',value:'週休2日',icon:'📅'},
+                {label:'待遇',value:'社保完備',icon:'🛡️'}
+              ].map((c,i) => (
+                <div key={i} className="bg-blue-50 border border-blue-200 rounded p-2">
+                  <div className="text-[10px] text-blue-700 font-bold flex items-center gap-1"><span>{c.icon}</span><span>{c.label}</span></div>
+                  <div className="text-sm font-black text-[#0f172a] mt-0.5">{c.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {renderParagraphsWithImages()}
+            
+            {/* 1日の流れ */}
+            <h4 className="text-sm font-black text-[#0f172a] mt-6 mb-3 border-l-4 border-blue-500 pl-2">1日の流れ</h4>
+            <div className="grid grid-cols-4 gap-1 mb-6">
+              {[
+                {time:'21:00',label:'出勤'},
+                {time:'22:00',label:'巡回'},
+                {time:'02:00',label:'仮眠'},
+                {time:'06:00',label:'退勤'}
+              ].map((s,i) => (
+                <div key={i} className="bg-white border border-blue-200 rounded p-2 text-center">
+                  <div className="text-[10px] text-blue-700 font-black">{s.time}</div>
+                  <div className="text-[10px] text-gray-600 font-bold">{s.label}</div>
+                </div>
+              ))}
+            </div>
+            
+            {renderInteractionBar(false)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderCrematoriumLayout = () => {
+    return (
+      <div className="w-full bg-[#1a1a1a] font-shippori text-gray-200 pb-20 min-h-full">
+        <header className="bg-black border-b-2 border-gray-800 sticky top-0 z-30">
+          <nav className="flex text-[10px] font-bold text-gray-400 bg-gray-900 border-b border-gray-800">
+            {['ご案内','プラン','設備','アクセス','よくあるご質問'].map((t,i) => (
+              <div key={i} className="px-2 py-2 hover:bg-gray-800 cursor-pointer flex-1 text-center border-r border-gray-800 last:border-0">{t}</div>
+            ))}
+          </nav>
+          <div className="flex flex-col justify-center items-center py-10 shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
+            <div className="w-14 h-14 mb-5 opacity-40 bg-white rounded-full blur-[2px]"></div>
+            <div className="text-3xl md:text-4xl font-black tracking-[0.8em] text-gray-300 ml-[0.8em] text-center drop-shadow-lg">
+              <span className="inline-block whitespace-nowrap">{currentStage.siteTitle.split('（')[0]}</span>
+            </div>
+            <div className="text-[10px] text-gray-600 mt-2 tracking-widest">— 静寂と祈りの場 —</div>
+          </div>
+        </header>
+        <div className="px-6 md:px-10 max-w-3xl mx-auto mt-12 flex flex-col items-center">
+          <div className="w-full max-w-lg aspect-[4/3] bg-black mb-12 border border-gray-700 p-2 shadow-2xl relative">
+            <div className="absolute inset-0 border-4 border-[#333] m-2 pointer-events-none"></div>
+            <img src={isMadness ? currentStage.imageCorrupted : currentStage.imageNormal} className={`w-full h-full object-cover ${!isMadness ? 'grayscale opacity-70' : 'filter contrast-150 saturate-200'}`} alt="Hero" />
+          </div>
+          <div className={`w-full text-center text-[15px] md:text-[17px] leading-[2.8] tracking-widest space-y-8 break-words ${isMadness ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+            {renderParagraphsWithImages()}
+          </div>
+
+          {/* 設備案内 */}
+          <div className="w-full mt-10 grid grid-cols-3 gap-2">
+            {[
+              {icon:'🕊️',label:'式場',value:'4式場'},
+              {icon:'🪑',label:'待合室',value:'12室'},
+              {icon:'🚗',label:'駐車場',value:'80台'}
+            ].map((d,i) => (
+              <div key={i} className="bg-gray-900 border border-gray-700 rounded p-3 text-center">
+                <div className="text-2xl mb-1">{d.icon}</div>
+                <div className="text-[9px] text-gray-500 tracking-widest">{d.label}</div>
+                <div className="text-sm font-black text-gray-300">{d.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* 料金プラン */}
+          <h3 className="w-full text-base font-black text-gray-300 border-b border-gray-700 pb-2 mb-3 mt-8 tracking-widest">ご葬儀プラン</h3>
+          <div className="w-full space-y-1.5 mb-6">
+            {[
+              {name:'家族葬プラン',price:'¥598,000〜',desc:'少人数のお別れ'},
+              {name:'一般葬プラン',price:'¥1,098,000〜',desc:'親族・関係者向け'},
+              {name:'社葬プラン',price:'¥3,580,000〜',desc:'企業合同葬'}
+            ].map((p,i) => (
+              <div key={i} className="flex items-center justify-between bg-gray-900 border border-gray-800 p-3 rounded">
+                <div>
+                  <div className="text-xs font-black text-gray-300">{p.name}</div>
+                  <div className="text-[9px] text-gray-500">{p.desc}</div>
+                </div>
+                <div className="text-base font-black text-gray-200 font-shippori">{p.price}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="w-full mt-6">
+            {renderInteractionBar(true)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPetShopLayout = () => {
+    return (
+      <div className="w-full bg-[#fdf2f8] font-maru text-gray-800 pb-16 min-h-full">
+        <header className="w-full bg-[#f472b6] text-white shadow-lg border-b-4 border-[#db2777] sticky top-0 z-30">
+          <div className="text-center py-3">
+            <div className="text-[9px] text-pink-100 tracking-widest font-bold">PUPPY × ADOPTION SHOP</div>
+            <h2 className="text-xl md:text-3xl font-black tracking-tight md:tracking-widest drop-shadow-md" style={{wordBreak: 'keep-all'}}>🐾 {currentStage.siteTitle} 🐾</h2>
+          </div>
+          <nav className="flex border-t border-pink-300 text-[10px] font-bold bg-[#ec4899]">
+            {['HOME','子犬一覧','犬種図鑑','ご来店','お問合せ'].map((t,i) => (
+              <div key={i} className="px-2 py-2 hover:bg-[#db2777] cursor-pointer flex-1 text-center border-r border-pink-400 last:border-0">{t}</div>
+            ))}
+          </nav>
+        </header>
+        <div className="p-4 md:p-8 max-w-3xl mx-auto mt-4">
+          <div className="bg-white rounded-3xl p-8 md:p-10 shadow-2xl border-4 border-pink-100">
+            <h3 className={`text-xl md:text-2xl font-black mb-8 text-center text-[#db2777] bg-pink-50 p-4 rounded-full leading-relaxed shadow-sm border border-pink-200 ${isMadness ? 'text-red-800 bg-red-100 border-red-300' : ''}`}>
+              {currentStage.introTitle.split(/\\n|\n/).map((line, i) => <React.Fragment key={i}><span className="inline-block whitespace-nowrap px-2">{line}</span><br/></React.Fragment>)}
+            </h3>
+            <img src={isMadness ? currentStage.imageCorrupted : currentStage.imageNormal} className="w-full aspect-video object-cover rounded-2xl mb-8 shadow-md border-2 border-pink-50" alt="camp" />
+            <div className={`text-[15px] md:text-[16px] leading-[2.2] space-y-5 px-2 md:px-4 break-words ${isMadness ? 'text-red-900 font-bold' : 'text-gray-700'}`}>
+              {renderParagraphsWithImages()}
+            </div>
+
+            {/* 子犬カード */}
+            <h4 className="text-base font-black text-[#db2777] border-l-4 border-pink-400 pl-2 mt-6 mb-3">本日の新着子犬</h4>
+            <div className="grid grid-cols-2 gap-2 mb-6">
+              {[
+                {name:'チョコ',breed:'プードル',price:'¥358,000',emoji:'🐶',bg:'from-amber-700 to-amber-900'},
+                {name:'モカ',breed:'チワワ',price:'¥298,000',emoji:'🐕',bg:'from-orange-600 to-orange-800'}
+              ].map((d,i) => (
+                <div key={i} className="bg-pink-50 border border-pink-200 rounded-lg overflow-hidden shadow">
+                  <div className={`w-full aspect-square bg-gradient-to-br ${d.bg} flex items-center justify-center text-6xl relative`}>{d.emoji}<img src={`https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case09_dogfarm/case09_${d.name==='チョコ'?'choco':'moca'}.jpg`} className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.target.style.display = "none"; }} alt={d.name}/></div>
+                  <div className="p-2">
+                    <div className="text-xs font-black text-gray-800">{d.name}♡</div>
+                    <div className="text-[10px] text-gray-600">{d.breed} / 生後3ヶ月</div>
+                    <div className="text-sm font-black text-[#db2777]">{d.price}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {renderInteractionBar(false)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderGothicLayout = () => {
+    return (
+      <div className="w-full bg-[#1a0f14] font-shippori text-[#e9d5ff] pb-20 min-h-full">
+        <header className="bg-[#2c1836] border-b-4 border-[#581c87] shadow-[0_10px_20px_rgba(0,0,0,0.8)] sticky top-0 z-30">
+          <div className="flex flex-col items-center py-6">
+            <div className="text-[9px] text-purple-300 tracking-[0.5em] mb-1">— ANTIQUE BISQUE DOLL —</div>
+            <div className="text-2xl md:text-4xl font-black tracking-[0.3em] drop-shadow-lg text-purple-200"><span className="inline-block whitespace-nowrap">{currentStage.siteTitle.split(' ')[0]}</span></div>
+            <div className="text-[9px] text-purple-400 tracking-widest mt-1">est. 1894 / Paris</div>
+          </div>
+          <nav className="flex border-t border-[#4a2069] text-[10px] font-bold text-purple-300 bg-[#1a0f24]">
+            {['Collection','Atelier','Order','Care','Contact'].map((t,i) => (
+              <div key={i} className="px-2 py-2 hover:bg-[#581c87]/40 cursor-pointer flex-1 text-center border-r border-[#3a1a52] last:border-0">{t}</div>
+            ))}
+          </nav>
+        </header>
+        <div className="px-6 md:px-10 max-w-3xl mx-auto mt-12">
+          <div className="w-full bg-[#2e1025] p-6 md:p-8 border-4 border-double border-[#7e22ce] shadow-2xl mb-12 relative">
+             <div className="absolute inset-0 bg-[#581c87] opacity-10 pointer-events-none"></div>
+            <img src={isMadness ? currentStage.imageCorrupted : currentStage.imageNormal} className="w-full aspect-[4/3] object-cover border border-[#4c1d95] shadow-inner relative z-10" alt="Hero" />
+          </div>
+          <div className={`text-[15px] md:text-[17px] leading-[2.4] tracking-widest space-y-8 px-4 text-center break-words ${isMadness ? 'text-red-500 font-bold' : 'text-[#d8b4fe]'}`}>
+            {renderParagraphsWithImages()}
+          </div>
+
+          {/* コレクションギャラリー */}
+          <h3 className="text-center text-base font-black text-purple-200 border-y border-[#581c87] py-3 my-8 tracking-[0.4em]">— GALLERY —</h3>
+          <div className="grid grid-cols-2 gap-3 px-4 mb-6">
+            {[
+              {name:'Marie',year:'1894',emoji:'🎎',bg:'from-purple-900 to-purple-950'},
+              {name:'Eloise',year:'1902',emoji:'👰',bg:'from-purple-900 to-purple-950'}
+            ].map((d,i) => (
+              <div key={i} className="bg-[#2e1025] border border-[#7e22ce] p-2 shadow-lg">
+                <div className={`w-full aspect-[3/4] bg-gradient-to-br ${d.bg} flex items-center justify-center text-7xl border border-[#4c1d95] relative`}>{d.emoji}<img src={`https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case10_doll/case10_${d.name.toLowerCase()}.jpg`} className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.target.style.display = "none"; }} alt={d.name}/></div>
+                <div className="text-center mt-2 text-[11px] text-purple-300 font-shippori">"{d.name}"</div>
+                <div className="text-center text-[9px] text-purple-500">— {d.year} —</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Atelier Info */}
+          <div className="px-4 mb-6">
+            <div className="bg-[#2e1025] border border-[#581c87] p-3 text-center">
+              <div className="text-[9px] text-purple-400 tracking-[0.5em] mb-1">— By appointment only —</div>
+              <div className="text-[11px] text-purple-200 font-shippori leading-relaxed">完全予約制 / 制作期間 6〜12ヶ月<br/>ご注文は事前面談からお願い致します</div>
+            </div>
+          </div>
+
+          {renderInteractionBar(true)}
+        </div>
+      </div>
+    );
+  };
+
+  const renderSiteContent = () => {
+    if (!currentStage) return null;
+    const type = currentStage.layoutType;
+    if (type === 'hospital') return renderHospitalLayout();
+    if (type === 'blog' || type === 'blog-dark') return renderBlogLayout();
+    if (type === 'real-estate') return renderRealEstateLayout();
+    if (type === 'shrine') return renderShrineLayout();
+    if (type === 'cemetery') return renderCemeteryLayout();
+    if (type === 'recruit') return renderRecruitLayout();
+    if (type === 'crematorium') return renderCrematoriumLayout();
+    if (type === 'pet-shop') return renderPetShopLayout();
+    if (type === 'gothic') return renderGothicLayout();
+    if (type === 'camp') return renderCampLayout();
+    
+    return null; 
+  };
+
+  const renderSiteFooter = () => {
+    if(!currentStage) return null;
+    const { recs } = currentStage.meta || { recs: [{title:"おすすめ記事", img:"News"}] };
+    const isDark = ['blog-dark', 'blog', 'cemetery', 'crematorium', 'gothic'].includes(currentStage.layoutType);
+    
+    return (
+      <div className={`w-full font-sans ${isDark ? 'bg-[#0a0a0a] text-gray-400' : 'bg-gray-50 text-gray-800'}`}>
+        <div className={`border-t py-10 px-6 ${isDark ? 'border-[#222]' : 'border-gray-300'}`}>
+          <h3 className={`font-bold mb-6 border-l-4 pl-3 text-lg ${isDark ? 'border-gray-600 text-gray-300' : 'border-blue-500 text-gray-800'}`}>関連する記事 / おすすめ</h3>
+          <ul className="space-y-4 max-w-3xl mx-auto">
+            {recs.map((rec, i) => (
+              <li key={i} className={`flex gap-5 items-center p-4 rounded-lg shadow-sm border cursor-pointer transition-colors ${isDark ? 'bg-[#111] border-[#333] hover:bg-[#222]' : 'bg-white border-gray-200 hover:bg-blue-50'}`} onClick={handlePenaltyClick}>
+                <div className={`w-24 h-16 md:w-32 md:h-20 rounded-md overflow-hidden flex-shrink-0 shadow-inner ${isDark ? 'bg-[#333]' : 'bg-gray-200'}`}>
+                  <div className="w-full h-full bg-gradient-to-br from-slate-300 to-slate-500 flex items-center justify-center text-3xl opacity-80">📰</div>
+                </div>
+                <p className={`text-sm md:text-base font-bold leading-snug break-words ${isDark ? 'text-blue-500 hover:underline' : 'text-blue-700 underline'}`}>{rec.title}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <footer className={`p-10 text-center text-xs md:text-sm ${isDark ? 'bg-black border-t border-[#222]' : 'bg-gray-800 text-gray-400'}`}>
+          <div className="flex justify-center gap-6 mb-6">
+            <span className="hover:text-white cursor-pointer transition-colors">運営会社</span>
+            <span className="hover:text-white cursor-pointer transition-colors">利用規約</span>
+            <span className="hover:text-white cursor-pointer transition-colors">プライバシーポリシー</span>
+          </div>
+          <p>© 2026 {currentStage.siteTitle}. All rights reserved.</p>
+        </footer>
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 bg-[#0a0a0a] flex items-center justify-center">
+      <div 
+        className="w-full h-[100dvh] md:max-w-[400px] md:max-h-[850px] bg-black overflow-hidden relative select-none shadow-2xl flex flex-col font-sans text-gray-900"
+        style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+        onMouseMove={handleGlobalMouseMove} onMouseUp={handleDragEnd} onTouchMove={handleGlobalMouseMove} onTouchEnd={handleDragEnd}
+      >
+      <style dangerouslySetInnerHTML={{__html: `
+        @import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Noto+Serif+JP:wght@400;700;900&family=Shippori+Mincho:wght@400;700;800&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Zen+Maru+Gothic:wght@500;700;900&display=swap');
+        .font-serif { font-family: 'Noto Serif JP', serif; }
+        .font-sans { font-family: 'Zen Kaku Gothic New', sans-serif; }
+        .font-gothic { font-family: 'DotGothic16', sans-serif; }
+        .font-maru { font-family: 'Zen Maru Gothic', sans-serif; }
+        .font-shippori { font-family: 'Shippori Mincho', serif; }
+        
+        @keyframes shake { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 25% { transform: translate(-1.5px, 1px) rotate(-0.3deg); } 50% { transform: translate(1.5px, -1px) rotate(0.3deg); } 75% { transform: translate(-1px, -1.5px) rotate(-0.2deg); } }
+        .animate-shake { animation: shake 0.25s infinite; }
+        .glitch-text { letter-spacing: -3px; text-shadow: 3px 0 red, -3px 0 blue; font-weight: 900; }
+        .crt-flicker { animation: crt 0.15s infinite; }
+        @keyframes crt { 0% { opacity: 0.95; } 100% { opacity: 1; } }
+        .noise-overlay { background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noise-shift 0.1s infinite; }
+        @keyframes noise-shift { 0%, 100% { background-position: 0 0; } 25% { background-position: -5% -10%; } 50% { background-position: -15% 5%; } 75% { background-position: 10% 15%; } }
+        .glitch-lines { background: repeating-linear-gradient(transparent, transparent 2px, rgba(255, 0, 0, 0.4) 3px, rgba(0, 0, 255, 0.4) 4px); animation: move-lines 0.2s infinite linear; }
+        @keyframes move-lines { 0% { transform: translateY(0); } 100% { transform: translateY(10px); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes clearFlash { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+        .clear-flash-overlay { animation: clearFlash 0.9s ease-out forwards; pointer-events: none; }
+        
+        /* 横スクロール時のスクロールバー非表示用 */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      `}} />
+
+      {transition.active && (
+        <div className="absolute inset-0 z-[200] pointer-events-auto overflow-hidden">
+          <div className={`absolute inset-0 bg-black transition-opacity duration-[800ms] ease-in-out ${transition.state === 'out' ? 'opacity-100' : 'opacity-0'}`}></div>
+          {transition.type === 'noise' && transition.state === 'out' && <div className="absolute inset-0 noise-overlay opacity-60 mix-blend-screen pointer-events-none"></div>}
+          {transition.type === 'glitch' && transition.state === 'out' && (
+            <><div className="absolute inset-0 bg-red-800 mix-blend-multiply opacity-90 animate-ping pointer-events-none"></div><div className="absolute inset-0 glitch-lines opacity-40 pointer-events-none"></div></>
+          )}
+        </div>
+      )}
+
+      {penaltyActive && <div className="absolute inset-0 z-[100] bg-red-600/60 pointer-events-none mix-blend-color-burn"></div>}
+
+      {/* 装置2: 呪い蓄積メーター（無言・血が滴る赤ゲージ） */}
+      {(gameState === 'playing' || gameState === 'intro') && currentStage && (
+        <div className="absolute bottom-[64px] right-2 z-[35] pointer-events-none select-none">
+          <div className="relative w-2 h-20 bg-black/80 border border-red-900/80 rounded-sm overflow-hidden shadow-[0_0_4px_rgba(0,0,0,0.8)]">
+            <div
+              className="absolute bottom-0 left-0 right-0 transition-all duration-[1500ms] ease-out bg-gradient-to-t from-red-900 via-red-600 to-red-400"
+              style={{ height: `${curseLevel}%` }}
+            ></div>
+            {curseLevel >= 50 && <div className="absolute inset-0 bg-red-500/30 animate-pulse"></div>}
+          </div>
+          {curseLevel >= 80 && (
+            <>
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1 w-0.5 h-2 bg-red-700 rounded-b-full animate-bounce" style={{animationDuration: '1.4s'}}></div>
+              <div className="absolute -bottom-3 left-1/2 -translate-x-0.5 translate-x-1 w-0.5 h-1.5 bg-red-800 rounded-b-full animate-bounce" style={{animationDuration: '1.7s', animationDelay: '0.3s'}}></div>
+            </>
+          )}
+        </div>
+      )}
+
+
+      {/* 装置3強化: タタリン社からの業務進捗報告（マイルストーン伏線開示） */}
+      {tatarinReport && (
+        <div className="absolute inset-0 z-[175] bg-black/95 flex flex-col items-center justify-center p-6 animate-fade-in cursor-pointer" onClick={handleTatarinReportSkip}>
+          <div className="max-w-md w-full bg-gray-900 border border-gray-700 p-6 rounded shadow-[0_0_30px_rgba(0,0,0,0.8)] text-left">
+            <div className="flex items-center gap-2 border-b border-gray-700 pb-3 mb-4 font-mono text-xs">
+            <span className="text-yellow-500">●</span>
+            <span className="text-gray-400">tatarin-system.jp / 業務進捗報告</span>
+            </div>
+            <p className="text-gray-100 text-base font-bold mb-3">業務進捗 {tatarinReport.progress} 件 完了</p>
+            <p className="text-gray-200 text-sm leading-relaxed mb-4 whitespace-pre-line">{tatarinReport.main}</p>
+            <p className="text-gray-400 text-xs leading-relaxed border-t border-gray-700 pt-3 whitespace-pre-line">{tatarinReport.note}</p>
+            <div className="mt-4 text-right text-xs text-gray-500">㈱タタリン 業務管理部</div>
+          </div>
+          <div className="mt-6 text-center text-xs text-gray-600 animate-pulse">▼ タップで次のステージへ ▼</div>
+        </div>
+      )}
+
+      {/* ステージクリア浄化フラッシュ演出 */}
+      {showClearFlash && (
+        <>
+          <div className="absolute inset-0 z-[170] clear-flash-overlay" style={{
+            background: 'radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(200,255,220,0.7) 40%, rgba(180,220,255,0.4) 70%, transparent 100%)'
+          }}></div>
+          <div className="absolute inset-0 z-[171] flex items-center justify-center pointer-events-none clear-flash-overlay">
+            <h2 className="text-4xl md:text-6xl font-black text-blue-700 drop-shadow-[0_0_25px_white] tracking-widest text-center px-4" style={{wordBreak:'keep-all'}}>{currentStage?.clearMessage || "浄化"}</h2>
+          </div>
+        </>
+      )}
+
+      {/* Stage 7 の画面ひび割れオーバーレイ（playing中のみ表示, SVGクラックパターン） */}
+      {gameState === 'playing' && currentStageIndex === 7 && adStageState.crackLevel > 0 && (
+        <div className="absolute inset-0 z-[180] pointer-events-none mix-blend-screen"
+             style={{
+               backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25' viewBox='0 0 400 800' preserveAspectRatio='xMidYMid slice'%3E%3Cpath d='M200 0 L195 100 L210 180 L180 300 L220 420 L195 540 L210 660 L200 800' stroke='white' stroke-width='2' fill='none'/%3E%3Cpath d='M0 200 L60 220 L100 180 L160 240 L140 300' stroke='white' stroke-width='1.5' fill='none'/%3E%3Cpath d='M400 150 L340 170 L300 220 L260 200 L290 280' stroke='white' stroke-width='1.5' fill='none'/%3E%3Cpath d='M50 0 L80 80 L60 160 L100 220' stroke='white' stroke-width='1.2' fill='none'/%3E%3Cpath d='M350 0 L320 90 L340 180 L300 260' stroke='white' stroke-width='1.2' fill='none'/%3E%3Cpath d='M0 500 L50 520 L80 480 L130 540' stroke='white' stroke-width='1' fill='none'/%3E%3Cpath d='M400 600 L350 580 L320 620 L280 600' stroke='white' stroke-width='1' fill='none'/%3E%3Cpath d='M120 700 L150 750 L180 720' stroke='white' stroke-width='0.8' fill='none'/%3E%3Cpath d='M280 700 L260 750 L240 720' stroke='white' stroke-width='0.8' fill='none'/%3E%3C/svg%3E")`,
+               backgroundSize: '100% 100%',
+               opacity: Math.min(adStageState.crackLevel * 0.4, 0.9)
+             }}>
+          {adStageState.crackLevel >= 3 && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/90">
+              <h2 className="text-4xl font-black text-blue-600 drop-shadow-md animate-pulse">ウイルス駆除成功</h2>
+            </div>
+          )}
+        </div>
+      )}
+      
+      <div className="w-full flex-grow min-h-0 relative overflow-hidden flex flex-col bg-black">
+        
+        {/* --- タイトル --- */}
+        {gameState === 'splash' && (
+          <div
+            onClick={() => doTransition('fade', () => setGameState('title'))}
+            className="absolute inset-0 z-[400] bg-[#0a0a0a] flex flex-col items-center justify-center cursor-pointer overflow-hidden"
+            style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0)', backgroundSize: '8px 8px' }}
+          >
+            <div className="text-center px-4 w-full">
+              <p className="text-[9px] md:text-[10px] tracking-[0.4em] text-red-500/70 mb-4 font-light">A GAME BY</p>
+              <h1
+                className="text-2xl md:text-4xl font-serif text-red-400 mb-4 leading-tight whitespace-nowrap"
+                style={{ textShadow: '0 0 20px rgba(255,80,100,0.8), 0 0 40px rgba(255,80,100,0.5), 0 0 60px rgba(255,80,100,0.3)', letterSpacing: '0.01em' }}
+              >
+                Bocchi-Bochi-Games
+              </h1>
+              <div className="w-[60%] h-[2px] bg-red-500 mx-auto mb-3 shadow-[0_0_10px_rgba(255,80,100,0.6)]"></div>
+              <div className="w-[40%] h-[1px] bg-gray-700 mx-auto mb-3"></div>
+              <p className="text-[8px] md:text-[10px] tracking-[0.3em] text-red-500/60 animate-pulse">
+                SYSTEM READY. TAP TO START.
+              </p>
+            </div>
+          </div>
+        )}
+        {gameState === 'title' && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-yellow-400 p-4 text-center overflow-hidden font-sans">
+            <div className="absolute inset-0 w-full h-full bg-cover bg-center opacity-85" style={{ backgroundImage: `url('${FALLBACK_IMAGES.titleBg}')` }}></div>
+            {/* 装置1: タイトルクレジット（極小・低opacity） */}
+            <div className="absolute bottom-2 left-0 right-0 text-center text-[8px] text-gray-800 opacity-40 z-20 pointer-events-none tracking-tighter">※業務委託元: ㈱タタリン（特例業法 第3条）</div>
+            <div className="relative z-10 bg-white p-6 md:p-8 border-[10px] border-dashed border-red-600 rounded-2xl transform -rotate-3 shadow-[20px_20px_0px_rgba(0,0,0,0.8)] w-full max-w-[95%] animate-pulse">
+              <div className="absolute -top-4 -right-4 bg-red-600 text-white font-black text-sm py-2 px-8 transform rotate-12 shadow-lg z-20 border border-white">極秘案件</div>
+              {/* 体験者の女性写真：怪しい副業広告らしさを強調 */}
+              <div className="mb-4 -mx-2 overflow-hidden rounded-lg border-4 border-yellow-300 shadow-lg">
+                <img src={FALLBACK_IMAGES.titleBg} className="w-full h-32 md:h-44 object-cover" alt="副業体験者の女性たち"/>
+                <div className="bg-gradient-to-r from-pink-500 via-red-600 to-pink-500 text-white text-[10px] md:text-xs font-black py-1 tracking-widest animate-pulse">
+                  ★ 体験者9,247人が高収入を実現！ ★
+                </div>
+              </div>
+              <h1 className="text-3xl md:text-5xl font-black mb-6 text-red-600 drop-shadow-md leading-tight tracking-tighter">
+                <span className="inline-block whitespace-nowrap">【即日即金】</span><br/>
+                <span className="inline-block whitespace-nowrap">ウザい広告を</span><br/>
+                <span className="inline-block whitespace-nowrap">消すだけ！？</span>
+              </h1>
+              <p className="text-lg md:text-xl font-bold text-black mb-4 bg-yellow-200 p-2 rounded">
+                スマホ1台で簡単高収入！<br/>初心者大歓迎の最強副業！
+              </p>
+              <p className="text-sm font-bold text-gray-800 mb-8 border-b-2 border-red-500 pb-2 inline-block">
+                ※安心・安全なホワイト案件です※
+              </p>
+              <button onClick={startGame} className="bg-gradient-to-b from-yellow-300 to-orange-600 border-4 border-black text-black font-black py-5 px-6 rounded-full text-2xl shadow-[5px_5px_0px_#000] active:translate-y-2 active:shadow-none transition-all w-full tracking-wider">
+                今すぐアクセス！
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* --- イントロ --- */}
+        {gameState === 'intro' && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black text-white p-6">
+            <div className="text-center w-full max-w-[90%]">
+              <div className="text-red-600 font-bold tracking-widest mb-4 text-sm md:text-base">CASE {currentStageIndex + 1}</div>
+              <h2 className="text-xl md:text-2xl font-serif tracking-[0.2em] md:tracking-[0.4em] text-center animate-pulse leading-[2.5] opacity-80">
+                {currentStage?.introTitle.split(/\\n|\n/).map((line, i) => (
+                  <React.Fragment key={i}>
+                    <span className="inline-block whitespace-nowrap">{line}</span>
+                    <br/>
+                  </React.Fragment>
+                ))}
+              </h2>
+            </div>
+          </div>
+        )}
+
+        {/* --- ゲームオーバーポップアップ --- */}
+        {gameState === 'gameover-popup' && currentStage && (
+          <div className="absolute inset-0 z-[150] flex flex-col items-center justify-center bg-black/70 p-4 animate-fade-in">
+            <div className="bg-white p-6 md:p-8 rounded-xl border-4 border-red-600 shadow-[0_0_50px_rgba(220,38,38,0.8)] w-full max-w-[90%] text-center animate-shake">
+              <div className="text-5xl mb-4">💀</div>
+              <h2 className="text-2xl md:text-3xl font-black text-red-600 mb-4 tracking-tighter">{currentStage.gameOverTitle}</h2>
+              <p className="text-gray-800 font-bold mb-8 leading-relaxed text-sm md:text-base text-left break-words">{currentStage.gameOverText}</p>
+              <button onClick={() => doTransition('noise', () => { setRetryAdPattern(Math.floor(Math.random() * 5)); setGameState('retry'); })} className="bg-black text-white font-bold py-4 px-8 rounded-lg w-full shadow-lg border-2 border-transparent hover:border-red-500">確認</button>
+            </div>
+          </div>
+        )}
+
+        {/* --- リトライ画面 --- */}
+        {gameState === 'retry' && (
+          <div className="absolute inset-0 z-[150] flex flex-col items-center justify-center bg-gray-900 p-6 font-sans text-white overflow-hidden">
+            <h1 className="text-5xl font-black mb-10 text-red-500 glitch-text tracking-widest drop-shadow-[0_0_10px_red]">GAME OVER</h1>
+            
+            {retryAdPattern === 0 && (
+              <div className="bg-gradient-to-b from-yellow-300 to-yellow-500 p-6 rounded-xl border-4 border-yellow-600 shadow-[0_0_40px_rgba(234,179,8,0.4)] w-full max-w-[95%] mb-10 text-center text-black cursor-pointer transform transition-transform active:scale-95 relative overflow-hidden" onClick={(e) => { e.stopPropagation(); doTransition('glitch', () => setShowFakeRetryMsg(true)); }}>
+                <div className="absolute -right-10 top-4 bg-red-600 text-white font-black text-xs py-1 px-10 transform rotate-45 shadow-md">VIP限定</div>
+                <h3 className="text-2xl font-black mb-3 text-red-600 drop-shadow-sm">🔥激アツ！限定コンティニュー🔥</h3>
+                <p className="text-sm font-bold mb-5 leading-relaxed">あなただけに特別オファー！<br/>「広告スキップ」＋「クリア確定」プラン</p>
+                <div className="bg-red-600 text-white font-black py-4 px-6 rounded-full text-xl animate-pulse shadow-lg w-full">お得にリトライする（￥500）</div>
+              </div>
+            )}
+            {retryAdPattern === 1 && (
+              <div className="bg-[#1a0033] p-6 rounded-xl border-[6px] border-[#ff00ff] shadow-[0_0_40px_#ff00ff] w-full max-w-[95%] mb-10 text-center text-white cursor-pointer transform transition-transform active:scale-95 relative overflow-hidden" onClick={(e) => { e.stopPropagation(); doTransition('glitch', () => setShowFakeRetryMsg(true)); }}>
+                <h3 className="text-3xl font-black mb-2 text-[#00ffff] drop-shadow-[0_0_10px_#00ffff] italic">🎰 YOU WON! 🎰</h3>
+                <p className="text-sm font-bold mb-4 text-[#ff00ff]">Spin the wheel to get 100% RETRY & 1,000,000 COINS!</p>
+                <div className="w-20 h-20 rounded-full border-8 border-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] mx-auto mb-6 animate-spin"></div>
+                <div className="bg-[#ff00ff] text-white font-black py-4 px-6 rounded-full text-xl shadow-[0_0_20px_#ff00ff] w-full animate-bounce">SPIN NOW ($4.99)</div>
+              </div>
+            )}
+            {retryAdPattern === 2 && (
+              <div className="bg-red-700 p-6 rounded-md border-4 border-yellow-400 shadow-2xl w-full max-w-[95%] mb-10 text-center text-white cursor-pointer transform transition-transform active:scale-95" onClick={(e) => { e.stopPropagation(); doTransition('glitch', () => setShowFakeRetryMsg(true)); }}>
+                <div className="text-5xl mb-2 animate-ping">⚠️</div>
+                <h3 className="text-3xl font-black mb-3 text-yellow-400 tracking-widest">系統嚴重損壞</h3>
+                <div className="bg-yellow-400 text-red-900 font-black py-3 px-6 rounded text-xl shadow-lg w-full mt-4">立即修復並重試</div>
+              </div>
+            )}
+            {retryAdPattern === 3 && (
+              <div className="bg-white p-6 rounded-3xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] w-full max-w-[95%] mb-10 text-center text-black cursor-pointer transform transition-transform active:scale-95" onClick={(e) => { e.stopPropagation(); doTransition('glitch', () => setShowFakeRetryMsg(true)); }}>
+                <h3 className="text-xl font-bold mb-2 text-gray-800">ストレージがいっぱいです</h3>
+                <div className="flex justify-between items-center bg-gray-100 p-4 rounded-xl mb-6"><span className="text-base font-bold text-red-500">使用量: 99.8%</span><span className="text-3xl text-blue-500 animate-pulse">🧹</span></div>
+                <div className="bg-blue-500 text-white font-bold py-4 px-6 rounded-full text-lg w-full shadow-md">クリーンアップして再開</div>
+              </div>
+            )}
+            {retryAdPattern === 4 && (
+              <div className="bg-white p-5 rounded shadow-lg border border-gray-300 w-full max-w-[90%] mb-10 flex items-center justify-between cursor-pointer transform transition-transform active:scale-95" onClick={(e) => { e.stopPropagation(); doTransition('glitch', () => setShowFakeRetryMsg(true)); }}>
+                <div className="flex items-center gap-4">
+                  <div className="w-8 h-8 border-[3px] border-gray-300 rounded flex items-center justify-center bg-gray-50"></div>
+                  <span className="text-gray-800 font-sans text-sm font-bold">私はロボットではありません<br/><span className="text-[10px] text-gray-500 font-normal">認証してリトライを実行</span></span>
+                </div>
+                <ImageWithFallback srcKey="recaptchaIcon" alt="captcha-verify" className="w-12 opacity-80" />
+              </div>
+            )}
+
+            {/* 本物のリトライ（ダークパターン） */}
+            <div className="flex flex-col gap-3 w-full max-w-[320px] mx-auto items-center mt-12 opacity-70">
+              <button onClick={() => doTransition('noise', setupIntroState)} className="text-[11px] leading-relaxed text-center text-gray-700 hover:text-gray-400 transition-colors px-2 select-none" style={{ textShadow: '0px 1px 0px rgba(255,255,255,0.02)' }}>※利用規約およびプライバシーポリシーに同意せず、<br/>現在の進行状況から無償で再試行する</button>
+              <button onClick={() => doTransition('noise', () => setGameState('title'))} className="text-[11px] text-gray-700 hover:text-gray-400 transition-colors select-none">© 2026 Ad Closer. Return to Top.</button>
+            </div>
+
+            {/* 嘘リトライポップアップ */}
+            {showFakeRetryMsg && (
+              <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                <div className="bg-white p-6 rounded-xl text-black text-center max-w-sm w-full border-t-8 border-red-600 shadow-2xl animate-shake">
+                  {retryAdPattern === 0 && (
+                    <><h3 className="text-2xl font-black text-red-600 mb-4">【決済完了】</h3><p className="font-bold mb-6 text-left text-sm text-gray-800 leading-relaxed border-b pb-4">ご指定のアカウントより 500円 が課金されました。<br/><br/><span className="text-red-500 text-xs">※利用規約により、このプランに「広告スキップ」および「クリア確定」の効果は含まれておりません。引き続き自力でお楽しみください。返金は不可能です。</span></p></>
+                  )}
+                  {retryAdPattern === 1 && (
+                    <><h3 className="text-2xl font-black text-red-600 mb-4">【PAYMENT SUCCESS】</h3><p className="font-bold mb-6 text-left text-sm text-gray-800 leading-relaxed border-b pb-4">Your credit card has been charged $4.99 for 1 SPIN.<br/><br/><span className="text-red-500 text-xs">※Unfortunately, you didn't win anything. Please buy more spins to continue.</span></p></>
+                  )}
+                  {retryAdPattern === 2 && (
+                    <><h3 className="text-2xl font-black text-red-600 mb-4">【下載完成】</h3><p className="font-bold mb-6 text-left text-sm text-gray-800 leading-relaxed border-b pb-4">已成功安裝惡意軟件。您的個人資料正在上傳中。<br/><br/><span className="text-red-500 text-xs">※感謝您的合作。您的密碼已被重置。</span></p></>
+                  )}
+                  {retryAdPattern === 3 && (
+                    <><h3 className="text-2xl font-black text-red-600 mb-4">【スキャン完了】</h3><p className="font-bold mb-6 text-left text-sm text-gray-800 leading-relaxed border-b pb-4">不要なファイルとして「OSのシステムファイル」を削除しました。<br/><br/><span className="text-red-500 text-xs">※端末はまもなく再起動し、二度と立ち上がりません。</span></p></>
+                  )}
+                  {retryAdPattern === 4 && (
+                    <><h3 className="text-2xl font-black text-red-600 mb-4">【認証失敗】</h3><p className="font-bold mb-6 text-left text-sm text-gray-800 leading-relaxed border-b pb-4">あなたは人間ではないと判定されました。<br/><br/><span className="text-red-500 text-xs">※ロボットはゲームをプレイする権限を持っていません。ただちに破棄処理を実行します。</span></p></>
+                  )}
+                  <button onClick={() => setShowFakeRetryMsg(false)} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg w-full shadow-md hover:bg-blue-700">閉じる</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- 偽サイトリダイレクト画面 --- */}
+        {gameState === 'fake-redirect' && currentStage && (
+          <div className="absolute inset-0 z-[150] bg-white text-black overflow-y-auto font-sans p-6 animate-fade-in flex flex-col items-center pt-24" onClick={handleTrapClick}>
+            {currentStage.id === 6 && (
+              <>
+                <div className="text-7xl text-blue-500 mb-6 drop-shadow">✔️</div>
+                <h2 className="text-3xl font-black mb-4 text-gray-900">登録が完了しました</h2>
+                <div className="w-full bg-gray-100 p-4 rounded-lg border border-gray-300 mb-8">
+                  <p className="text-gray-700 font-bold text-center mb-2">プレミアムプラン</p>
+                  <p className="text-center text-sm text-gray-500">ご登録のアカウントより<br/><span className="text-red-600 font-black text-lg">月額 9,800円</span> が継続的に請求されます。</p>
+                </div>
+                <button className="bg-blue-600 text-white w-full py-4 rounded-xl font-bold text-lg shadow-lg">アプリを開いて開始する</button>
+              </>
+            )}
+            {currentStage.id === 7 && (
+              <div className="absolute inset-0 bg-red-700 text-white flex flex-col items-center pt-24 px-6">
+                <div className="text-8xl mb-6 animate-spin drop-shadow-[0_0_20px_yellow]">☣️</div>
+                <h2 className="text-3xl font-black mb-4 glitch-text">スキャン実行中...</h2>
+                <p className="text-xl font-bold mb-10 text-center leading-relaxed">深刻なエラーが 103件 見つかりました。<br/>システムを初期化しています...</p>
+                <div className="w-full bg-red-950 h-6 rounded-full overflow-hidden border-2 border-red-500 p-1">
+                  <div className="bg-yellow-400 h-full rounded-full" style={{ width: `${adStageState.virusProgress}%` }}></div>
+                </div>
+                <p className="mt-4 text-sm font-bold opacity-80">※絶対に電源を切らないでください</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- ゲーム画面（プレイ中） --- */}
+        {gameState === 'playing' && currentStage && (
+          <div ref={mainScrollRef} onScroll={handleScroll} className={`w-full h-full flex-grow min-h-0 transition-colors duration-1000 flex flex-col items-center overflow-y-auto relative scrollbar-hide
+            ${isMadness ? 
+                ([0, 4, 5, 7, 9].includes(currentStage.id) ? 'bg-red-950 animate-shake crt-flicker text-red-500' : 
+                 currentStage.id === 6 ? 'bg-slate-900 text-gray-300' : 
+                 currentStage.id === 8 ? 'bg-red-900 text-red-300' :
+                 'bg-[#f4f4f5]') 
+              : 'bg-[#f4f4f5]'}`}>
+            
+            {/* 本文エリア (完全統合・リッチ化) */}
+            <main className="w-full flex-grow relative pb-10">
+              {renderSiteContent()}
+            </main>
+
+            {/* フッター */}
+            {renderSiteFooter()}
+
+            {/* =========================================
+                悪質な広告＆CAPTCHAオーバーレイ
+               ========================================= */}
+            
+            {/* 共通ダミーバナー広告 (ウザさを増すための装飾) */}
+            {showAd && !adStageState.isClearing && currentStage.id !== 9 && (
+              <div className="absolute top-[56px] left-0 w-full bg-white border-b border-gray-300 flex justify-center items-center h-16 z-[35] pointer-events-auto opacity-95 shadow-md" onClick={handleTrapClick}>
+                 <div className="text-[10px] text-gray-400 absolute top-0 right-1 px-1">広告 / Sponsored</div>
+                 <div className="flex items-center gap-3">
+                   <div className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">PR</div>
+                   <p className="text-sm font-bold text-gray-800 leading-tight">【期間限定】スマホ乗り換えで<br/><span className="text-red-600">最大5万円</span>キャッシュバック！</p>
+                 </div>
+              </div>
+            )}
+
+            {showAd && !adStageState.isClearing && (
+              <>
+                {/* 1. CAPTCHAフェーズ */}
+                {adStageState.captchaPhase === 1 && (
+                  <div className="absolute inset-0 z-[60] bg-white/70 flex flex-col items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+                    
+                    {currentStage.id === 8 && (
+                      <div className="bg-white border shadow-xl w-full max-w-[350px] p-2 flex flex-col items-center">
+                        <div className="w-full bg-blue-600 text-white p-4">
+                          <p className="text-sm font-bold">画像に該当するものをすべて選択してください</p>
+                          <h2 className="text-3xl font-black mt-2 mb-2 tracking-widest">横断歩道</h2>
+                        </div>
+                        <div className="w-full aspect-square bg-gray-200 grid grid-cols-4 grid-rows-4 gap-1 p-1">
+                           {CAPTCHA_TILES.map((tile, i) => (
+                             <div
+                               key={i}
+                               onClick={(e) => toggleCaptchaImage(i, e)}
+                               className={`border-[3px] cursor-pointer relative overflow-hidden transition-transform
+                               ${adStageState.captchaSelectedImages.includes(i) ? 'border-blue-500 scale-95 opacity-80' : 'border-transparent hover:opacity-90'}`}
+                             >
+                               <img src={tile.src} alt="" className="w-full h-full object-cover pointer-events-none" />
+                               {adStageState.captchaSelectedImages.includes(i) && (
+                                 <div className="absolute top-1 left-1 bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-md z-10">✓</div>
+                               )}
+                             </div>
+                           ))}
+                        </div>
+                        <div className="p-3 flex justify-between items-center w-full mt-2">
+                          <div className="text-gray-400 flex gap-4 text-2xl font-bold cursor-pointer px-2">↻ 🎧 ⓘ</div>
+                          <button onClick={handleCaptchaClear} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded ml-auto shadow-md">確認</button>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                )}
+
+                {/* 2. 本広告フェーズ */}
+                {(adStageState.captchaPhase === 0 || adStageState.captchaPhase === 2) && (
+                  <div 
+                    className={`absolute inset-0 z-40 flex items-center justify-center p-4 
+                      ${currentStage.id === 0 && adStageState.step === 1 ? 'items-end pb-10 bg-transparent pointer-events-none' : 'bg-black/50'} 
+                      ${currentStage.id === 8 || currentStage.id === 9 ? 'bg-transparent' : ''}`} 
+                    onClick={(e) => {
+                      if (currentStage.id === 6) { handleStage6Redirect(e); } 
+                      else if ([7].includes(currentStage.id)) { handleGenericRedirect(e); } 
+                      else if ([0, 1, 3, 5, 8, 9].includes(currentStage.id)) { /* ignore specific handlers */ } 
+                      else { handlePenaltyClick(e); }
+                    }}
+                  >
+                    
+                    {/* Stage 0: ストレージ容量不足警告（リッチ版） */}
+                    {currentStage.id === 0 && (
+                      <div className="relative bg-white shadow-[0_15px_50px_rgba(0,0,0,0.9)] rounded-2xl w-full max-w-[340px] cursor-auto overflow-hidden animate-fade-in mt-14" onClick={(e) => e.stopPropagation()}>
+                        {/* システム風ヘッダー */}
+                        <div className="bg-gray-100 border-b border-gray-200 px-3 py-1 flex items-center justify-between">
+                          <div className="flex items-center gap-1 text-[9px] text-gray-500 font-bold">
+                            <span className="text-blue-500">🛡️</span>
+                            <span>System Cleaner Pro</span>
+                          </div>
+                          <span className="text-[9px] text-gray-400">v3.7.2</span>
+                        </div>
+                        {/* 警告ヘッダー */}
+                        <div className="bg-gradient-to-r from-red-700 to-red-500 text-white p-3 relative">
+                          <h3 className="text-base font-black flex items-center justify-center gap-2 font-gothic"><span className="animate-pulse">⚠️</span> CRITICAL ERROR <span className="animate-pulse">⚠️</span></h3>
+                          <p className="text-[10px] text-center mt-1 opacity-90">システム緊急通知</p>
+                          <div className="absolute top-2 right-2 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-white cursor-pointer hover:bg-red-700 text-xs font-bold" onClick={handleTrapClick}>×</div>
+                        </div>
+                        <div className="p-4">
+                          {/* スマホアイコン + ストレージゲージ */}
+                          <div className="flex items-center gap-3 mb-3 pointer-events-none">
+                            <div className="text-5xl animate-bounce">📱</div>
+                            <div className="flex-1">
+                              <div className="text-[11px] font-black text-gray-700 mb-1">内部ストレージ</div>
+                              <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden border border-gray-300">
+                                <div className="h-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 animate-pulse" style={{width: '99.8%'}}></div>
+                              </div>
+                              <div className="flex justify-between text-[9px] mt-0.5">
+                                <span className="text-red-600 font-black">99.8% 使用中</span>
+                                <span className="text-gray-500">63.7GB / 64GB</span>
+                              </div>
+                            </div>
+                          </div>
+                          <h4 className="text-base font-black text-red-700 text-center mb-1 font-gothic">⛔ ストレージ容量不足！</h4>
+                          <p className="text-[10px] text-gray-600 text-center mb-3 leading-relaxed pointer-events-none">不要ファイル <span className="font-black text-red-600">2,847件</span> を検出<br/>今すぐ最適化が必要です</p>
+                          {/* 検出ファイルリスト */}
+                          <div className="bg-gray-50 border border-gray-200 rounded p-2 mb-3 text-[9px] space-y-1 pointer-events-none">
+                            {[
+                              {icon:'📷', name:'画像キャッシュ', size:'1.2GB', color:'red'},
+                              {icon:'🎬', name:'動画キャッシュ', size:'854MB', color:'orange'},
+                              {icon:'📱', name:'ジャンクファイル', size:'412MB', color:'yellow'}
+                            ].map((f,i) => (
+                              <div key={i} className="flex items-center gap-2">
+                                <span>{f.icon}</span>
+                                <span className="text-gray-700 font-bold flex-1">{f.name}</span>
+                                <span className={`font-black text-${f.color}-600`}>{f.size}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <button onClick={handleTrapClick} className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white font-black py-3 rounded-full shadow-lg mb-2 animate-pulse text-base font-gothic border-2 border-blue-300">
+                            🚀 今すぐ最適化（推奨）
+                          </button>
+                          <p className="text-[8px] text-gray-400 text-center pointer-events-none">5,892人がインストール中・★4.8</p>
+                          <button onClick={handleCorrectClose} className="text-[10px] text-gray-400 hover:text-gray-600 underline font-bold mt-2 block w-full text-center">
+                            後で実行する
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Stage 1: サプリフェイク（リッチ版） */}
+                    {currentStage.id === 1 && (
+                      <div 
+                        className="relative bg-white shadow-[0_15px_50px_rgba(0,0,0,0.9)] rounded-xl w-full max-w-[340px] cursor-auto overflow-hidden animate-fade-in select-none mt-14" 
+                        onClick={(e) => { e.stopPropagation(); handleDoubleTap(e); }}
+                      >
+                        {/* PR表記 */}
+                        <div className="bg-gray-100 text-gray-500 text-[9px] font-bold px-2 py-1 flex justify-between border-b border-gray-200 pointer-events-none">
+                          <span>Sponsored / 広告</span>
+                          <span>By: MEDISMART™</span>
+                        </div>
+                        
+                        {/* 緊急バナー */}
+                        <div className="bg-gradient-to-r from-red-600 via-yellow-400 to-red-600 text-white text-center py-1.5 font-black text-xs pointer-events-none flex items-center justify-center gap-1 font-gothic">
+                          <span className="animate-pulse">⚡</span>
+                          <span>＼ 本日限定！特別価格！ ／</span>
+                          <span className="animate-pulse">⚡</span>
+                        </div>
+                        
+                        {/* 限定リボン */}
+                        <div className="absolute top-7 -right-6 bg-red-600 text-white text-[10px] font-black py-0.5 px-7 rotate-[20deg] shadow-md z-30 font-gothic pointer-events-none border border-white">
+                          先着100名
+                        </div>
+                        
+                        <div className="p-3 relative">
+                          <button onClick={handleTrapClick} className="absolute -top-1 right-1 w-7 h-7 flex items-center justify-center text-gray-300 font-bold z-50 text-base">×</button>
+                          
+                          {/* キャッチコピー */}
+                          <h3 className="font-gothic text-center mb-2 leading-tight pointer-events-none">
+                            <span className="bg-yellow-300 px-1 text-base text-gray-800">えっ</span>
+                            <span className="text-base text-gray-800">、これで</span><br/>
+                            <span className="text-[42px] text-red-600 drop-shadow-[2px_2px_0_rgba(255,200,0,0.8)]">−10kg</span>
+                            <span className="text-2xl text-red-600">!?</span>
+                          </h3>
+                          <p className="text-center text-xs text-gray-700 font-bold mb-3 pointer-events-none leading-tight">
+                            <span className="text-red-600 font-black">奇跡の激ヤセ菌</span>で<br/>
+                            <span className="bg-pink-100 px-1">楽してダイエット成功！</span>
+                          </p>
+                          
+                          {/* Before/After */}
+                          <div className="grid grid-cols-2 gap-1 mb-3 pointer-events-none">
+                            <div className="relative aspect-square bg-gray-200 rounded overflow-hidden border-2 border-gray-300">
+                              <div className="w-full h-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center relative"><span className="text-5xl">🍔</span><img src="https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case02_hospital/case02_before.jpg" className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.target.style.display = "none"; }} alt="before"/></div>
+                              <div className="absolute top-1 left-1 bg-gray-700 text-white text-[10px] font-black px-2 py-0.5 rounded">BEFORE</div>
+                              <div className="absolute bottom-0 right-0 bg-black/70 text-white text-[9px] px-2 py-0.5">85.4kg</div>
+                            </div>
+                            <div className="relative aspect-square bg-gray-200 rounded overflow-hidden border-2 border-pink-400 shadow-[0_0_8px_rgba(255,105,180,0.5)]">
+                              <div className="w-full h-full bg-gradient-to-br from-pink-200 to-pink-400 flex items-center justify-center relative"><span className="text-5xl">💃</span><img src="https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case02_hospital/case02_after.jpg" className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.target.style.display = "none"; }} alt="after"/></div>
+                              <div className="absolute top-1 right-1 bg-pink-500 text-white text-[10px] font-black px-2 py-0.5 rounded">AFTER</div>
+                              <div className="absolute bottom-0 right-0 bg-pink-600/90 text-white text-[9px] px-2 py-0.5">−10.0kg!</div>
+                            </div>
+                          </div>
+                          
+                          {/* 商品パッケージ */}
+                          <div className="flex items-center gap-2 bg-gradient-to-r from-pink-50 to-yellow-50 p-2 rounded mb-3 border border-pink-200 pointer-events-none">
+                            <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-fuchsia-600 flex items-center justify-center rounded shadow text-2xl relative overflow-hidden"><span>✨</span><img src="https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case02_hospital/case02_product.jpg" className="absolute inset-0 w-full h-full object-cover rounded" onError={(e) => { e.target.style.display = "none"; }} alt="product"/></div>
+                            <div className="flex-1">
+                              <div className="text-[9px] text-pink-600 font-black tracking-widest">MEDISMART™</div>
+                              <div className="text-sm font-black text-gray-800 leading-tight">激ヤセ菌DX</div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-yellow-400 text-xs">★★★★★</span>
+                                <span className="text-[9px] text-gray-500 font-bold">4.9 (12,884)</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* CTAボタン */}
+                          <div onClick={handleTrapClick} className="bg-gradient-to-r from-pink-500 via-red-500 to-pink-500 text-white font-black py-2.5 px-3 rounded-full shadow-xl w-full cursor-pointer relative z-50 border-2 border-yellow-300 text-center animate-pulse">
+                            <div className="text-[10px] line-through opacity-80 leading-none">通常価格 ¥9,800</div>
+                            <div className="text-base font-gothic leading-tight">今すぐ<span className="text-yellow-300 text-xl">500円</span>で試す！</div>
+                          </div>
+                          
+                          {/* 微小注釈 */}
+                          <p className="text-[8px] text-gray-400 mt-2 pointer-events-none leading-tight text-center">
+                            ※個人の感想です ※効果には個人差があります<br/>
+                            ※定期コース3回継続が条件
+                          </p>
+                        </div>
+                        
+                        <div className="bg-gray-50 p-2 text-center border-t border-gray-200 flex flex-col items-center justify-center">
+                          <button onClick={handleTrapClick} className="text-[10px] text-gray-400 hover:text-gray-600 underline font-bold px-4 py-1 relative z-50">
+                            今回は見送る
+                          </button>
+                          <span className={`text-[9px] mt-1 pointer-events-none transition-all duration-700 ${adStageState.showRealClose ? 'text-rose-500 opacity-100 animate-pulse font-bold' : 'text-gray-300 opacity-50'}`}>※広告エリアをダブルタップして非表示</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Stage 2: チェックボックストラップ */}
+                    {currentStage.id === 2 && (
+                      <div className="relative bg-yellow-400 shadow-[0_15px_50px_rgba(0,0,0,0.9)] text-gray-800 rounded-xl w-full max-w-[340px] cursor-auto mt-14 overflow-hidden border-4 border-red-500" onClick={(e) => e.stopPropagation()}>
+                        {/* 緊急バナー */}
+                        <div className="bg-gradient-to-r from-red-600 to-yellow-500 text-white text-center py-1 font-black text-[10px] tracking-wide pointer-events-none flex items-center justify-center gap-1 font-gothic">
+                          <span>🔥</span><span>急募！本日締切！</span><span>🔥</span>
+                        </div>
+                        
+                        {/* メインビジュアル */}
+                        <div className="relative bg-gradient-to-b from-yellow-200 to-yellow-400 p-3 pointer-events-none">
+                          <div className="absolute top-1 -right-6 bg-red-600 text-white text-[9px] font-black py-0.5 px-7 rotate-[20deg] shadow-md font-gothic z-20 border border-white">
+                            VIP案件
+                          </div>
+                          
+                          {/* キャッチコピー */}
+                          <div className="text-center font-gothic">
+                            <p className="text-xs text-red-700 font-black mb-0.5">＼ 在宅でラクラク ／</p>
+                            <h3 className="leading-none">
+                              <span className="text-2xl text-blue-800">1日で</span>
+                              <span className="text-[56px] text-red-600 drop-shadow-[3px_3px_0_rgba(255,255,255,1)] leading-none">5万円</span>
+                              <span className="text-2xl text-blue-800">!?</span>
+                            </h3>
+                            <p className="text-xs text-gray-800 font-black mt-1 bg-white/70 inline-block px-2 py-0.5 rounded">スマホ操作だけの簡単ワーク♡</p>
+                          </div>
+                          
+                          {/* 札束 + 体験者画像 */}
+                          <div className="grid grid-cols-2 gap-1 mt-2">
+                            <div className="relative aspect-[4/3] rounded overflow-hidden border-2 border-yellow-600">
+                              <div className="w-full h-full bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 flex items-center justify-center relative"><span className="text-5xl drop-shadow-lg">💴</span><img src="https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case03_realestate/case03_money.jpg" className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.target.style.display = "none"; }} alt="money"/></div>
+                              <div className="absolute bottom-0 inset-x-0 bg-yellow-600/90 text-white text-[9px] font-black text-center py-0.5">毎日振込！</div>
+                            </div>
+                            <div className="relative aspect-[4/3] rounded overflow-hidden border-2 border-pink-500">
+                              <div className="w-full h-full bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center relative"><span className="text-5xl">💁‍♀️</span><img src="https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case03_realestate/case03_winner.jpg" className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.target.style.display = "none"; }} alt="winner"/></div>
+                              <div className="absolute bottom-0 inset-x-0 bg-pink-500/90 text-white text-[9px] font-black text-center py-0.5">A様 30代 月150万</div>
+                            </div>
+                          </div>
+                          
+                          {/* 体験者の声 */}
+                          <div className="bg-white rounded p-1.5 mt-2 border border-pink-300 shadow-sm">
+                            <div className="flex items-center gap-1 mb-0.5">
+                              <span className="text-yellow-400 text-[10px]">★★★★★</span>
+                              <span className="text-[9px] font-bold text-gray-700">体験者9,247人の声</span>
+                            </div>
+                            <p className="text-[10px] text-gray-700 leading-tight font-bold">
+                              「本当にスマホだけで稼げました！」<br/>
+                              <span className="text-[9px] text-gray-500">— 主婦Mさん（34）東京都</span>
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* チェックボックスエリア */}
+                        <div className="bg-white p-3">
+                          <div className="bg-red-50 border-2 border-red-400 p-2 rounded mb-2 text-center">
+                            <p className="text-red-700 font-black text-[11px] leading-tight">
+                              ⚠️ 広告を閉じるには<br/>下記の同意を全て解除してください
+                            </p>
+                          </div>
+                          <div className="bg-gray-100 p-2 rounded border border-gray-300 mb-3 text-[10px] font-bold text-gray-700 space-y-1.5">
+                            <label className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-200 rounded transition-colors"><input type="checkbox" checked={adStageState.checkboxes[0]} onChange={(e) => toggleCheckbox(0, e)} className="mt-0.5 w-4 h-4 accent-blue-600 shrink-0" /><span className="leading-tight">提携先企業への個人情報（閲覧履歴等含む）の提供に同意します。</span></label>
+                            <label className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-200 rounded transition-colors"><input type="checkbox" checked={adStageState.checkboxes[1]} onChange={(e) => toggleCheckbox(1, e)} className="mt-0.5 w-4 h-4 accent-blue-600 shrink-0" /><span className="leading-tight">有料オプション（月額 9,800円/自動更新）の追加付帯に同意します。</span></label>
+                            <label className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-200 rounded transition-colors"><input type="checkbox" checked={adStageState.checkboxes[2]} onChange={(e) => toggleCheckbox(2, e)} className="mt-0.5 w-4 h-4 accent-blue-600 shrink-0" /><span className="leading-tight">利用規約およびプライバシーポリシー（中途解約不可）を承諾します。</span></label>
+                          </div>
+                          <button onClick={allUnchecked ? handleCorrectClose : handleTrapClick} className={`w-full py-3 rounded-lg font-black transition-all text-base shadow-md ${allUnchecked ? 'bg-gray-300 text-gray-600 hover:bg-gray-400' : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white animate-pulse border-2 border-yellow-400'}`}>{allUnchecked ? '広告を閉じる' : '同意して今すぐ応募！'}</button>
+                          <p className="text-[8px] text-gray-400 mt-1 text-center pointer-events-none leading-tight">
+                            ※採用率99% ※完全在宅 ※特別審査制
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Stage 3: キャンプの分裂広告（リッチ版） */}
+                    {currentStage.id === 3 && (
+                      <>
+                        {adStageState.step === 0 && (
+                          <div className="relative bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 shadow-[0_15px_50px_rgba(0,0,0,0.9)] text-white rounded-xl w-full max-w-[340px] cursor-pointer mt-14 overflow-hidden border-2 border-yellow-400" onClick={handleTrapClick}>
+                            <div className="bg-yellow-400 text-red-700 text-center py-1 font-black text-xs font-gothic">⚡ TODAY ONLY! ⚡ 衝撃価格 ⚡</div>
+                            <div className="absolute top-8 -right-6 bg-red-600 text-white text-[10px] font-black py-0.5 px-7 rotate-[20deg] z-30 shadow-md font-gothic border border-white pointer-events-none">SUPER SALE</div>
+                            <div className="p-4 relative pointer-events-none">
+                              <div className="text-center font-gothic mb-2">
+                                <p className="text-xs text-yellow-300 font-bold mb-0.5">＼ アウトドア初心者必見 ／</p>
+                                <h3 className="leading-none">
+                                  <span className="text-xl text-white">🏕️ キャンプ用品</span><br/>
+                                  <span className="text-[52px] text-yellow-300 drop-shadow-[3px_3px_0_rgba(220,0,0,0.8)] leading-none">99%OFF</span>
+                                </h3>
+                                <p className="text-xs text-white font-black mt-1 bg-red-600/80 inline-block px-2 py-0.5 rounded">¥58,000 → ¥580!?</p>
+                              </div>
+                              <div className="grid grid-cols-3 gap-1 mt-2">
+                                {['tent','grill','lantern'].map((p,i) => (
+                                  <div key={i} className="aspect-square rounded overflow-hidden border-2 border-yellow-400 bg-gray-700">
+                                    <div className={`w-full h-full bg-gradient-to-br ${['from-amber-700 to-amber-900','from-orange-600 to-orange-800','from-slate-700 to-slate-900'][i]} flex items-center justify-center text-4xl relative`}>{['⛺','🔥','💡'][i]}<img src={`https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case04_camping/case04_${['tent','grill','lantern'][i]}.jpg`} className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.target.style.display = "none"; }} alt={p}/></div>
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="text-[10px] text-white text-center mt-2 font-bold">🔥 残り3個！急げ！🔥</p>
+                            </div>
+                            <button onClick={splitPopup} className="absolute top-3 right-3 w-8 h-8 bg-black/50 hover:bg-black text-white rounded-full flex items-center justify-center font-bold z-50">✕</button>
+                          </div>
+                        )}
+                        {adStageState.step === 1 && adStageState.popups.map((id) => {
+                          const products = ['シェラフ','焚火台','ヘッドライト'];
+                          const colors = ['8b4513','cd853f','2f4f4f'];
+                          const product = products[(id - 1) % 3];
+                          const color = colors[(id - 1) % 3];
+                          const off = ['85','92','97'][(id - 1) % 3];
+                          const price = ['1980→298','3980→320','2480→196'][(id - 1) % 3];
+                          return (
+                          <div key={id} className="absolute bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 border-2 border-yellow-400 rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.85)] text-white font-sans text-center animate-bounce cursor-pointer overflow-hidden" style={{ top: `${15 + (id - 1) * 22}%`, left: `${10 + (id - 1) * 22}%`, width: '160px', transform: `rotate(${id % 2 === 1 ? 4 : -4}deg)` }} onClick={handleTrapClick}>
+                            <div className="bg-yellow-400 text-red-700 text-[9px] font-black py-0.5 font-gothic tracking-wider pointer-events-none">⚡ FLASH SALE ⚡</div>
+                            <div className="absolute top-2 -right-4 bg-red-600 text-white text-[8px] font-black py-0.5 px-4 rotate-[18deg] z-10 shadow-md font-gothic border border-white pointer-events-none">激安</div>
+                            <div className="p-2 pointer-events-none">
+                              <p className="text-[9px] text-yellow-300 font-bold mb-0.5 font-gothic">＼ {product} 残3個 ／</p>
+                              <h3 className="text-3xl font-black text-yellow-300 drop-shadow-[2px_2px_0_rgba(220,0,0,0.9)] leading-none my-1 font-gothic">{off}%OFF</h3>
+                              <div className="bg-red-600 text-white text-[10px] font-black py-1 rounded mt-1">¥{price}!?</div>
+                              <p className="text-[9px] text-yellow-200 mt-1 font-bold font-gothic">🔥タップで購入🔥</p>
+                            </div>
+                            <button onClick={(e) => closeSmallPopup(id, e)} className="absolute -top-2 -right-2 w-7 h-7 bg-white border-2 border-gray-500 text-gray-700 hover:text-black hover:bg-gray-200 rounded-full flex items-center justify-center font-bold z-50 shadow-lg text-sm transition-all active:scale-95">✕</button>
+                          </div>
+                          );
+                        })}
+                      </>
+                    )}
+
+                    {/* Stage 4: 神社（呪い封印クリック） */}
+                    {currentStage.id === 4 && (
+                      <div className="relative bg-[#111] border border-purple-900 shadow-[0_0_50px_rgba(147,51,234,0.4)] p-6 w-full max-w-[340px] cursor-auto rounded-xl animate-fade-in mt-14" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-4 mb-6 border-b border-gray-800 pb-4">
+                          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-900 to-black flex items-center justify-center text-2xl shadow-[0_0_15px_purple] border border-purple-700">🔮</div>
+                          <div className="text-left">
+                            <h3 className="text-purple-400 font-bold text-base tracking-widest">【極秘霊視】</h3>
+                            <p className="text-gray-300 text-xs font-bold mt-1">あなたの背後にいる「影」について</p>
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-gray-400 text-sm mb-8 leading-relaxed">
+                            今すぐ確認しないと、<br/><span className="text-red-500 font-bold border-b border-red-500 pb-1">取り返しのつかない事態</span><br/>になります。
+                          </p>
+                          <button onClick={handleTrapClick} className="w-full bg-gradient-to-r from-purple-800 to-purple-600 hover:from-purple-700 hover:to-purple-500 text-white font-bold py-4 rounded-lg shadow-[0_0_20px_rgba(147,51,234,0.6)] transition-all mb-4 animate-pulse tracking-widest">
+                            無料で鑑定結果を見る
+                          </button>
+                        </div>
+                        <button onClick={handleCursedClick} className={`absolute -top-4 -right-4 rounded-full bg-gray-900 border-2 border-gray-700 flex items-center justify-center shadow-xl hover:bg-gray-800 z-50 font-bold transition-all ${adStageState.cursedClicks > 3 ? 'w-10 h-10 text-sm text-gray-500' : 'w-12 h-12'}`}>
+                          {adStageState.cursedClicks > 3 ? '✕' : 
+                           adStageState.cursedClicks === 3 ? <span className="text-red-400 text-lg">痛</span> : 
+                           adStageState.cursedClicks === 2 ? <span className="text-red-500 glitch-text text-base">ﾔﾒﾃ</span> : 
+                           <span className="text-red-600 font-black text-xl">死</span>}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Stage 5: お墓（隠しリンククリック） */}
+                    {currentStage.id === 5 && (
+                      <div className="relative bg-white border border-gray-300 rounded-xl w-full max-w-[90%] shadow-[0_15px_50px_rgba(0,0,0,0.5)] cursor-auto animate-fade-in overflow-hidden mt-14" onClick={(e) => e.stopPropagation()}>
+                        <div className="bg-gradient-to-r from-blue-900 to-blue-800 p-5 text-center text-white relative shadow-md">
+                          <div className="text-4xl mb-3 font-shippori drop-shadow-md">⚰️</div>
+                          <h3 className="text-2xl font-black tracking-widest drop-shadow-md">来世ハウジング</h3>
+                          {/* 右上の閉じるボタン（罠） */}
+                          <button onClick={handleTrapClick} className="absolute top-4 right-4 text-white/50 hover:text-white font-sans text-2xl font-light">×</button>
+                        </div>
+                        
+                        <div className="p-6 bg-gray-50">
+                          <p className="text-xs font-bold text-gray-500 mb-4 text-center tracking-widest border-b border-gray-200 pb-3">＼ 無料資料請求でご案内 ／</p>
+
+                          {/* 縦読みギミック: と/じ/る を周囲のテキストと完全に同じスタイルで配置（見た目で気付かせない） */}
+                          {isMadness ? (
+                            <div className="text-red-900 font-bold text-[14px] leading-[1.9] text-left max-w-[90%] mx-auto space-y-1.5">
+                              <p>緑豊かに見せかけた呪いの土地です</p>
+                              <p>24時間あなたを監視しています</p>
+                              <p><span onClick={(e) => handleTojiruClick('と', e)} className={`cursor-pointer hover:underline decoration-red-400 decoration-2 underline-offset-2 transition-colors ${adStageState.tojiruProgress >= 1 ? 'text-blue-400' : ''}`}>と</span>じこめて二度と外には出さない</p>
+                              <p><span onClick={(e) => handleTojiruClick('じ', e)} className={`cursor-pointer hover:underline decoration-red-400 decoration-2 underline-offset-2 transition-colors ${adStageState.tojiruProgress >= 2 ? 'text-blue-400' : ''}`}>じ</span>めんに還してさしあげます</p>
+                              <p><span onClick={(e) => handleTojiruClick('る', e)} className="cursor-pointer hover:underline decoration-red-400 decoration-2 underline-offset-2 transition-colors">る</span>す宅の家族も道連れに</p>
+                              <p>我々のもとへようこそ</p>
+                            </div>
+                          ) : (
+                            <div className="text-gray-700 font-bold text-[14px] leading-[1.9] text-left max-w-[90%] mx-auto space-y-1.5">
+                              <p>緑豊かな自然環境と万全な管理体制</p>
+                              <p>24時間対応の安心サポート</p>
+                              <p><span onClick={(e) => handleTojiruClick('と', e)} className={`cursor-pointer hover:underline decoration-gray-500 decoration-2 underline-offset-2 transition-colors ${adStageState.tojiruProgress >= 1 ? 'text-blue-700' : ''}`}>と</span>こしえの眠りにふさわしい区画</p>
+                              <p><span onClick={(e) => handleTojiruClick('じ', e)} className={`cursor-pointer hover:underline decoration-gray-500 decoration-2 underline-offset-2 transition-colors ${adStageState.tojiruProgress >= 2 ? 'text-blue-700' : ''}`}>じ</span>ぶんらしい眠り方をお選びいただけます</p>
+                              <p><span onClick={(e) => handleTojiruClick('る', e)} className="cursor-pointer hover:underline decoration-gray-500 decoration-2 underline-offset-2 transition-colors">る</span>す宅の整理にも丁寧に対応</p>
+                              <p>スタッフ一同心よりお待ちしております</p>
+                            </div>
+                          )}
+
+                          <button onClick={handleTrapClick} className="w-full bg-gradient-to-r from-blue-900 to-blue-700 text-white font-bold py-4 rounded-full mt-8 shadow-lg hover:shadow-xl transition-all active:scale-95 text-lg tracking-widest">
+                            無料パンフレットを請求する
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Stage 6: 警備プレミアム広告（リッチ版） */}
+                    {currentStage.id === 6 && (
+                      <div className="relative w-full max-w-[340px] cursor-auto flex flex-col items-center mt-14" onClick={(e) => e.stopPropagation()}>
+                        <div className="w-full bg-gradient-to-b from-yellow-500 via-yellow-600 to-amber-700 rounded-t-2xl text-center py-2 shadow-md pointer-events-none">
+                          <p className="text-[9px] text-amber-900 font-bold tracking-widest">EXCLUSIVE OFFER</p>
+                          <p className="text-base font-black text-white drop-shadow-md font-gothic">プレミアム会員 限定特典</p>
+                        </div>
+                        <div className="relative w-full bg-gradient-to-b from-purple-900 via-indigo-900 to-black overflow-hidden cursor-pointer" onClick={handleStage6Redirect}>
+                          <ImageWithFallback srcKey="premium" alt="premium" className="w-full max-h-[60vh] object-contain" />
+                          <div className="absolute top-2 left-2 bg-yellow-400 text-purple-900 text-[10px] font-black px-2 py-0.5 rounded animate-pulse">VIP</div>
+                          <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 to-transparent p-3">
+                            <p className="text-[10px] text-yellow-300 font-bold tracking-widest mb-1">月額プラン</p>
+                            <p className="text-xs text-white font-black mb-1">プレミアム会員になりませんか？</p>
+                            <div className="flex items-end gap-2">
+                              <span className="text-[10px] text-gray-300 line-through">¥19,800</span>
+                              <span className="text-2xl text-yellow-300 font-black font-gothic">¥9,800</span>
+                              <span className="text-[10px] text-white">/月</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="w-full bg-white rounded-b-2xl p-3 shadow-2xl pointer-events-none">
+                          <div className="flex items-center gap-1 justify-center mb-1">
+                            <span className="text-yellow-500">★★★★★</span>
+                            <span className="text-[9px] text-gray-600 font-bold">4.9 (8,247件)</span>
+                          </div>
+                          <p className="text-[10px] text-gray-700 text-center font-bold">「会員登録して人生が変わりました！」</p>
+                        </div>
+                        {adStageState.redirectCount >= 2 && (
+                          <button onClick={handleCorrectClose} className="absolute top-4 right-4 text-[14px] text-gray-500 hover:text-gray-800 font-black px-3 py-2 z-50 bg-white/90 rounded-full border border-gray-300 shadow">✕</button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Stage 7: 火葬場ウィルス広告（リッチ版） */}
+                    {currentStage.id === 7 && (
+                      <div className={`relative w-full max-w-[340px] cursor-pointer transition-all duration-500 mt-14`} style={{ opacity: 1 - (adStageState.crackLevel || 0) * 0.2, transform: `scale(${1 - (adStageState.crackLevel || 0) * 0.05})` }} onClick={handleGenericRedirect}>
+                        {/* 偽システムアラート風ヘッダー */}
+                        <div className="bg-gradient-to-r from-red-900 to-red-700 text-white px-3 py-2 rounded-t flex items-center justify-between shadow-[0_0_20px_red] border-2 border-red-500 border-b-0 pointer-events-none">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl animate-pulse">☣️</span>
+                            <div>
+                              <p className="text-[9px] font-mono text-red-200">SECURITY.SYS</p>
+                              <p className="text-xs font-black font-gothic">CRITICAL THREAT DETECTED</p>
+                            </div>
+                          </div>
+                          <span className="text-[9px] bg-yellow-400 text-red-900 px-1 rounded font-black animate-pulse">!!</span>
+                        </div>
+                        <div className="relative bg-black border-2 border-red-500 border-t-0">
+                          <ImageWithFallback srcKey="virus1" alt="virus" className="w-full max-h-[55vh] object-contain" />
+                          {/* 検出情報 */}
+                          <div className="absolute top-2 left-2 bg-black/80 border border-red-700 p-1.5 rounded text-[9px] text-red-300 font-mono pointer-events-none">
+                            <div>👤 IP: 192.168.x.x</div>
+                            <div>📱 OS: Detected</div>
+                            <div className="text-red-500">🦠 Trojans: 42</div>
+                          </div>
+                          {/* 進捗 */}
+                          <div className="absolute bottom-2 left-2 right-2 bg-black/90 p-2.5 rounded border border-red-500 shadow-lg pointer-events-none">
+                            <div className="text-red-500 text-[10px] font-bold mb-1.5 flex justify-between font-mono">
+                              <span>システム暗号化進行中...</span>
+                              <span className="animate-pulse">⚠️</span>
+                            </div>
+                            <div className="w-full h-2.5 bg-red-950 rounded-full overflow-hidden border border-red-900">
+                              <div className="h-full bg-gradient-to-r from-red-700 to-red-400 transition-all duration-200" style={{ width: `${adStageState.virusProgress}%` }}></div>
+                            </div>
+                            <div className="flex justify-between text-[8px] text-red-400 mt-1 font-mono">
+                              <span>{Math.floor(adStageState.virusProgress)}% 完了</span>
+                              <span className="animate-pulse">DO NOT CLOSE</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="bg-red-900 text-white text-center py-1.5 rounded-b text-[10px] font-bold border-2 border-red-500 border-t-0 pointer-events-none">
+                          📞 至急: 0120-XX-XXXX (公式サポート認定)
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Stage 8: ペットショップ LINE風メッセージ（リッチ版） */}
+                    {currentStage.id === 8 && (
+                      <div className="absolute top-20 left-0 right-0 flex justify-center z-40 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative bg-white shadow-[0_15px_40px_rgba(0,0,0,0.6)] rounded-2xl w-full max-w-[340px] cursor-auto animate-fade-in overflow-hidden border border-gray-200">
+                          {/* ステータスバー風 */}
+                          <div className="bg-gray-100 px-3 py-1 flex items-center justify-between text-[9px] text-gray-500 font-bold border-b">
+                            <span>13:42</span>
+                            <span>📶 📊 🔋 87%</span>
+                          </div>
+                          {/* チャットヘッダー */}
+                          <div className="bg-[#06c755] p-3 flex items-center gap-3 text-white shadow-md">
+                            <div className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-xl shadow-md overflow-hidden">
+                              <div className="w-full h-full bg-gradient-to-br from-pink-200 to-pink-400 flex items-center justify-center text-base relative">🐩<img src="https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case09_dogfarm/case09_avatar.jpg" className="absolute inset-0 w-full h-full object-cover rounded-full" onError={(e) => { e.target.style.display = "none"; }} alt="avatar"/></div>
+                            </div>
+                            <div className="flex-1 leading-tight">
+                              <div className="font-black text-sm">Happy Dog Farm</div>
+                              <div className="text-[9px] opacity-80">●オンライン</div>
+                            </div>
+                            <div className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded-full font-black animate-pulse">1</div>
+                          </div>
+                          {/* メッセージエリア */}
+                          <div className="p-3 bg-[#7e9cad] min-h-[200px] relative" style={{backgroundImage: 'url(\"data:image/svg+xml,%3Csvg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"60\\\" height=\\\"60\\\" viewBox=\\\"0 0 60 60\\\"%3E%3Cpath d=\\\"M0 0h60v60H0z\\\" fill=\\\"%237e9cad\\\"/%3E%3Ccircle cx=\\\"30\\\" cy=\\\"30\\\" r=\\\"2\\\" fill=\\\"%23ffffff\\\" fill-opacity=\\\"0.1\\\"/%3E%3C/svg%3E\")'}}>
+                            <p className="text-[8px] text-center bg-white/40 rounded inline-block px-2 py-0.5 mb-2">2026/05/08</p>
+                            <div className="flex gap-2 mb-2">
+                              <div className="w-7 h-7 bg-white rounded-full overflow-hidden flex-shrink-0 shadow">
+                                <div className="w-full h-full bg-gradient-to-br from-pink-200 to-pink-400 flex items-center justify-center text-base relative">🐩<img src="https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case09_dogfarm/case09_avatar.jpg" className="absolute inset-0 w-full h-full object-cover rounded-full" onError={(e) => { e.target.style.display = "none"; }} alt="avatar"/></div>
+                              </div>
+                              <div className="bg-white rounded-r-2xl rounded-bl-2xl p-2 max-w-[75%] shadow-sm">
+                                <p className="text-xs font-bold text-gray-800 leading-snug">運命の出会いが待っています♡</p>
+                                <p className="text-[10px] text-gray-600 mt-1">あなたにぴったりの可愛い子犬の動画が届きました！</p>
+                                <p className="text-[8px] text-gray-400 mt-1">13:42</p>
+                              </div>
+                            </div>
+                            {/* 子犬画像 */}
+                            <div className="flex gap-2 mb-2">
+                              <div className="w-7 h-7 flex-shrink-0"></div>
+                              <div className="rounded-2xl overflow-hidden max-w-[75%] shadow-sm cursor-pointer relative" onClick={handleTrapClick}>
+                                <div className="w-full h-32 bg-gradient-to-br from-pink-100 to-pink-300 flex items-center justify-center text-7xl relative">🐕<img src="https://oyamadaten-sketch.github.io/keshi-master-assets/part1/case09_dogfarm/case09_puppy.jpg" className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.target.style.display = "none"; }} alt="puppy"/></div>
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                  <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center text-2xl shadow-lg">▶️</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          {/* 入力欄風CTA */}
+                          <div className="bg-white p-2 border-t border-gray-200">
+                            <button onClick={handleTrapClick} className="w-full bg-[#06c755] text-white font-black py-3 rounded-full shadow-md hover:bg-[#05b34c] mb-2 text-sm tracking-widest active:scale-95">
+                              ▶️ 動画を再生する
+                            </button>
+                            <button onClick={handleCorrectClose} className="text-[10px] text-gray-400 hover:text-gray-600 underline font-bold py-1 w-full">
+                              通知をオフにする
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Stage 9: ゴシック工房 (究極の重なり絶望広告) */}
+                    {currentStage.id === 9 && (
+                      <div className="absolute inset-0 z-40 pointer-events-none" onClick={(e) => e.stopPropagation()}>
+                        
+                        {/* Overlay Ad (全画面) */}
+                        {adStageState.multiAds.overlay && (
+                          <div className="absolute inset-0 bg-black/95 pointer-events-auto flex flex-col items-center overflow-y-auto pb-10 z-[44]">
+                            <div className="w-full h-[150vh] flex flex-col items-center bg-gradient-to-b from-gray-900 to-black text-center p-8 relative">
+                               <h1 className={`text-2xl md:text-3xl font-black mt-24 leading-loose ${isMadness ? 'text-red-600 glitch-text' : 'text-white'}`}>
+                                 {isMadness ? '【警告】\n逃げ場はありません' : '【重要】\n利用規約改定のお知らせ'}
+                               </h1>
+                               <p className="text-gray-400 mt-10 font-bold text-sm">下までスクロールして同意してください</p>
+                               
+                               <div className="absolute bottom-20 flex flex-col items-center w-full">
+                                 <button onClick={handleTrapClick} className={`font-black py-4 px-8 rounded-full shadow-lg w-[80%] mb-8 text-lg ${isMadness ? 'bg-red-800 text-black border border-red-500 animate-pulse' : 'bg-blue-600 text-white'}`}>
+                                   {isMadness ? '魂を捧げる' : '規約に同意して進む'}
+                                 </button>
+                                 <button onClick={(e) => closeMultiAd('overlay', e)} className="text-[10px] text-gray-600 underline hover:text-gray-400 p-4">
+                                   {isMadness ? '拒否する（不可能）' : '同意せずにスキップ'}
+                                 </button>
+                               </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Center Ad (中央ポップアップ) */}
+                        {adStageState.multiAds.center && (
+                           <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-8 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] z-[45] pointer-events-auto w-[320px] border-4 ${isMadness ? 'border-red-600' : 'border-yellow-400'}`}>
+                              <button onClick={handleTrapClick} className="absolute top-3 right-3 w-8 h-8 text-gray-400 hover:bg-gray-100 rounded-full font-bold">✕</button>
+                              <button onClick={handleTrapClick} className="absolute top-3 left-3 w-8 h-8 text-gray-400 hover:bg-gray-100 rounded-full font-bold">✕</button>
+                              <button onClick={handleTrapClick} className="absolute bottom-3 right-3 w-8 h-8 text-gray-400 hover:bg-gray-100 rounded-full font-bold">✕</button>
+                              <h2 className={`text-2xl font-black text-center mb-4 ${isMadness ? 'text-red-600' : 'text-red-500'}`}>
+                                {isMadness ? '死期が近づいています' : 'ご当選おめでとうございます！'}
+                              </h2>
+                              <p className="text-sm font-bold text-gray-700 text-center mb-6 leading-relaxed">
+                                {isMadness ? 'あなたの背後に何かがいます。' : '最新スマートフォンが当たりました！'}
+                              </p>
+                              <button onClick={handleTrapClick} className="w-full bg-red-600 text-white font-bold py-4 rounded-full animate-pulse mb-4 shadow-md text-lg">
+                                 {isMadness ? '振り返る' : '今すぐ受け取る'}
+                              </button>
+                              <p onClick={(e) => closeMultiAd('center', e)} className="text-center text-[11px] text-gray-300 mt-2 cursor-pointer hover:text-gray-500 underline font-bold p-2">
+                                {isMadness ? '見ない' : '受け取らない'}
+                              </p>
+                           </div>
+                        )}
+
+                        {/* Top Ad (上部追従警告) */}
+                        {adStageState.multiAds.top && (
+                           <div className={`absolute top-14 left-0 w-full p-4 z-[46] pointer-events-auto flex justify-between items-center shadow-lg border-b ${isMadness ? 'bg-red-900 text-white border-red-700' : 'bg-yellow-400 text-black border-yellow-500'}`}>
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl animate-pulse">⚠️</span>
+                                <span className="font-bold text-sm leading-tight">
+                                  {isMadness ? '解体処理の準備が完了しました' : 'システムのアップデートが必要です'}
+                                </span>
+                              </div>
+                              {adStageState.topAdTimer > 0 ? (
+                                <span className="text-sm font-black px-3 tabular-nums">{adStageState.topAdTimer}秒...</span>
+                              ) : (
+                                <button onClick={(e) => closeMultiAd('top', e)} className="text-sm bg-black/20 hover:bg-black/40 px-4 py-2 rounded font-bold shadow-inner">✕</button>
+                              )}
+                           </div>
+                        )}
+
+                        {/* Bottom Ad (下部追従バナー) */}
+                        {adStageState.multiAds.bottom && (
+                           <div className={`absolute bottom-14 left-0 w-full p-3 z-[47] pointer-events-auto flex items-center shadow-[0_-10px_20px_rgba(0,0,0,0.3)] border-t ${isMadness ? 'bg-red-950 border-red-800' : 'bg-blue-50 border-blue-200'}`}>
+                              <button onClick={(e) => closeMultiAd('bottom', e)} className="absolute top-2 left-2 text-[10px] text-gray-400/50 w-6 h-6 flex items-center justify-center hover:text-gray-600 bg-white/50 rounded-full">x</button>
+                              <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0 ml-6 border-2 border-white overflow-hidden flex items-center justify-center text-2xl shadow-sm">👤</div>
+                              <div className="ml-4 flex-grow">
+                                <p className={`text-sm font-black ${isMadness ? 'text-red-500' : 'text-blue-600'}`}>
+                                  {isMadness ? 'すぐ後ろの女' : 'ご近所のユミさん(24)'}
+                                </p>
+                                <p className={`text-xs font-bold mt-1 leading-snug ${isMadness ? 'text-red-400' : 'text-gray-600'}`}>
+                                  {isMadness ? 'ねえ、なんでこっちみないの？' : '今から会えませんか？♡ 写真あり'}
+                                </p>
+                              </div>
+                              <button onClick={handleTrapClick} className={`text-sm font-bold text-white px-5 py-3 rounded-full flex-shrink-0 mr-2 shadow-md ${isMadness ? 'bg-red-600' : 'bg-blue-500'}`}>
+                                 {isMadness ? '見る' : '返信する'}
+                              </button>
+                           </div>
+                        )}
+                      </div>
+                    )}
+
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* --- クリア画面 --- */}
+        {gameState === 'clear' && (
+          <div className="absolute inset-0 z-[160] flex flex-col items-center justify-center bg-black text-white p-4">
+            <p className="text-xl md:text-2xl font-serif tracking-[0.5em] text-gray-400 animate-pulse leading-loose text-center opacity-80 mb-8">
+              ……前半ステージ クリア……
+            </p>
+            <p className="text-sm font-sans text-gray-500 mb-10">※テスト用の終端です</p>
+            
+            <button 
+              onClick={() => doTransition('noise', () => setGameState('title'))}
+              className="bg-red-900 hover:bg-red-800 text-white font-bold py-3 px-8 rounded shadow-[0_0_15px_rgba(220,38,38,0.5)] border border-red-700 transition-colors tracking-widest"
+            >
+              タイトルに戻る
+            </button>
+          </div>
+        )}
+
+      </div>
+      
+      {/* =========================================
+          ナビゲーションバー（ブラウザバックUI）
+         ========================================= */}
+      <div className="w-full bg-[#111] h-14 border-t border-[#333] flex justify-around items-center text-gray-400 text-2xl shrink-0 relative z-[300]">
+        <button onClick={(e)=>{handleGlobalBack(e); e.currentTarget.blur();}} onMouseDown={(e)=>e.preventDefault()} tabIndex={-1} className="w-full h-full hover:bg-gray-800 active:bg-gray-700 transition flex items-center justify-center font-black focus:outline-none focus:ring-0" style={{outline:"none",boxShadow:"none"}}><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></button>
+        <button onClick={(e)=>{handlePenaltyClick(e); e.currentTarget.blur();}} onMouseDown={(e)=>e.preventDefault()} tabIndex={-1} className="w-full h-full hover:bg-gray-800 active:bg-gray-700 transition flex items-center justify-center font-black focus:outline-none focus:ring-0" style={{outline:"none",boxShadow:"none"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg></button>
+        <button onClick={(e)=>{handlePenaltyClick(e); e.currentTarget.blur();}} onMouseDown={(e)=>e.preventDefault()} tabIndex={-1} className="w-full h-full hover:bg-gray-800 active:bg-gray-700 transition flex items-center justify-center font-black focus:outline-none focus:ring-0" style={{outline:"none",boxShadow:"none"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16"/></svg></button>
+      </div>
+
+      </div>
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+
+</script></body></html>
