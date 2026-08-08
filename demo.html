@@ -9613,11 +9613,13 @@ function App() {
           }, "★ " + (lang === 'en' ? 'Full version reveals ALL' : '続きは製品版で全解禁') + " ★")
         ),
         /*#__PURE__*/React.createElement("p", {
-          className: "text-sm md:text-base font-bold text-gray-800 mb-3 bg-yellow-100 p-2 rounded leading-relaxed"
-        }, lang === 'en' ? 'CASE 8-23 reveal the full truth of this dark contract...' : '続きの CASE 8〜23 では、真相が少しずつ明かされていきます。'),
+          className: "text-sm md:text-base font-bold text-gray-800 mb-3 bg-yellow-100 p-2 rounded leading-relaxed",
+          style: { whiteSpace: 'pre-line' }
+        }, lang === 'en' ? 'Assignments remaining:\nCASES 8-23!!' : '残りの業務は\nCASE8〜23！！'),
         /*#__PURE__*/React.createElement("p", {
-          className: "text-sm md:text-base font-black text-red-600 mb-4 leading-relaxed"
-        }, lang === 'en' ? 'Who is the REAL client?' : '「本当の依頼主」は、一体誰なのか——？'),
+          className: "text-sm md:text-base font-black text-red-600 mb-4 leading-relaxed",
+          style: { whiteSpace: 'pre-line' }
+        }, lang === 'en' ? 'Can you clear them all\nand uncover the shocking truth?' : 'あなたはすべてをクリアし、\n衝撃の事実に辿り着けるか？'),
         /*#__PURE__*/React.createElement("p", {
           className: "text-[11px] text-gray-500 font-bold mb-3"
         }, lang === 'en' ? '*Demo: CASE 1-7 only' : '※体験版は CASE 1〜7 まで'),
@@ -9638,8 +9640,9 @@ function App() {
           }, "🎪 itch.io")
         ),
         /*#__PURE__*/React.createElement("p", {
-          className: "text-[10px] text-gray-500 mt-4"
-        }, lang === 'en' ? '*Outsourced by TATARIN Inc. (16 cases remain)' : '※業務委託元: ㈱タタリン（残 16 案件）'),
+          className: "text-[10px] text-gray-500 mt-4",
+          style: { whiteSpace: 'pre-line' }
+        }, lang === 'en' ? '*Outsourced by TATARIN Inc.\nThank you for your hard work.' : '※業務委託元: ㈱タタリン\nお仕事、お疲れ様です。'),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => doTransition('noise', () => setGameState('title')),
           className: "mt-4 text-xs text-gray-500 underline font-bold"
