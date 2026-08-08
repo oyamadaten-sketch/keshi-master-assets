@@ -1057,16 +1057,16 @@ let STAGES = [
     commentsData: { normal: [{ name: "依頼主", text: "本当に効果がありました。嫌な上司が異動になりました。" }], corrupted: [{ name: "死霊", text: "くるしい くるしい たすけて" }] }
   }
 ];
-STAGES = STAGES.slice(0, 7);  // DEMO: CASE 1〜7 のみ
+STAGES = STAGES.slice(0, 7);  // DEMO
 
 const STRINGS = {
-  ja: { stageSelect:'ステージ選択', back:'‹ 戻る', cleared:'クリア', soundOn:'🔊 サウンド ON', soundOff:'🔇 サウンド OFF', selectHint:'クリア済み + 続きのケースのみ選択できます', langToggle:'🌐 English', demoBadge:'体験版', demoTitleHeadline:'極秘案件\n続きは製品版で', demoTitleSub:'あと 16案件、完了ボーナス確定！', demoTitleHint:'※体験版は CASE 1〜7 まで', demoCTAMain:'▶ 完全版を今すぐアクセス！', demoCTASteam:'Steam版 予約はコチラ', demoCTAItch:'itch.io ページを開く', demoStoryLine1:'体験版クリア！お疲れさまでした。', demoStoryLine2:'続きの CASE 8〜23 では、\n真相が少しずつ明かされていきます。', demoStoryLine3:'「本当の依頼主」は、\n一体誰なのか——？', demoAgencyMemo:'※業務委託元: ㈱タタリン（残 16 案件）', demoNotYet:'※ストア登録はもうすぐ！公開まで少々お待ちください',
+  ja: { stageSelect:'ステージ選択', back:'‹ 戻る', cleared:'クリア', soundOn:'🔊 サウンド ON', soundOff:'🔇 サウンド OFF', selectHint:'クリア済み + 続きのケースのみ選択できます', langToggle:'🌐 English',
         titleBadge:'極秘案件', titleBanner:'★ 体験者9,247人が高収入を実現！ ★', titleHeadline:'【即日即金】\nウザい広告を\n消すだけ！？', titleSub:'スマホ1台で簡単高収入！', titleCta:'今すぐアクセス！', titleCredit:'※業務委託元: ㈱タタリン（特例業法 第3条）',
         repHeader:'tatarin-system.jp / 業務進捗報告', repProgPre:'業務進捗', repProgPost:'件 完了', repDept:'㈱タタリン 業務管理部', repTapNext:'▼ タップで次のステージへ ▼',
         frSync:'同期完了', frBody1:'22個の呪いに加え、\nノローウ本体の最終呪詛を吸収しました。', frBody2:'契約完遂。ご苦労様でした。', frBody3:'㈱ノローウ社の暴走呪詛は\nあなた様の身体にて適切に分散浄化されました。\n追って ㈱タタリン より\n業務報告書をお送りいたします。\n日当はご家族様の口座へ振込済みです。',
         clrTitle:'……契約完遂……', clrBody:'23個の呪詛、すべての分散浄化が完了いたしました。\nノローウ社の暴走は鎮静、業界秩序は回復されました。\n\nあなた様のお体は呪詛の容器として一定の役目を終え、\nまもなく機能を停止いたします。\n日当はご家族様の口座にお振込み済みでございます。', clrDept:'――㈱タタリン 業務管理部', clrNext:'＞ 次へ',
         endTitle:'ウザい広告を消すだけ', endSubtitle:'〜 知らないうちに\n闇案件に巻き込まれていた件 〜', endBody1:'この度は、拙作『消しマスター』を最後までプレイいただき、誠にありがとうございました。', endBody2:'本作はオカルトと風刺、そしてプレイヤーへの軽い悪戯心から生まれた小さなゲームです。広告を消すという何気ない行為の裏に隠れた呪詛、そしてあなた様自身が気づかぬうちに呪いを背負わされていく体験を楽しんでいただけましたでしょうか。', endBody3:'あなた様の指先には、まだ23個の呪詛が定着したままでございます。このまま現実にお戻りいただくのは、開発者として心苦しい限りでございますので——', endBody4:'下記の浄化の札に触れて、穢れをお清めください。', endRiteTitle:'―  お祓いの儀  ―', endRiteSub:'浄化の札に触れて穢れを清めます', endTapPurify:'▼ タップで浄化 ▼', endDirector:'小山田 天' },
-  en: { stageSelect:'Stage Select', back:'‹ Back', cleared:'Cleared', soundOn:'🔊 Sound ON', soundOff:'🔇 Sound OFF', selectHint:'Only cleared cases and the next one can be selected.', langToggle:'🌐 日本語', demoBadge:'DEMO', demoTitleHeadline:'CONFIDENTIAL GIG\nUnlock the rest\nin the full version', demoTitleSub:'16 more cases! Completion bonus guaranteed!', demoTitleHint:'*Demo: CASE 1-7 only', demoCTAMain:'▶ Access full version now!', demoCTASteam:'Reserve on Steam', demoCTAItch:'Open itch.io page', demoStoryLine1:'Demo complete! Thank you for playing.', demoStoryLine2:'CASE 8-23 reveal the full truth\nof this dark contract...', demoStoryLine3:'Who is the REAL client\nbehind this gig?', demoAgencyMemo:'*Outsourced by TATARIN Inc. (16 cases remain)', demoNotYet:'*Store pages coming soon! Please wait for the official launch',
+  en: { stageSelect:'Stage Select', back:'‹ Back', cleared:'Cleared', soundOn:'🔊 Sound ON', soundOff:'🔇 Sound OFF', selectHint:'Only cleared cases and the next one can be selected.', langToggle:'🌐 日本語',
         titleBadge:'TOP SECRET', titleBanner:'★ 9,247 workers already cashing in! ★', titleHeadline:'【SAME-DAY CASH】\nJust close those\nannoying ads!?', titleSub:'Easy money — all from your phone!', titleCta:'ACCESS NOW!', titleCredit:'※ Outsourced by: TATARIN Inc. (Special Exception Act, Art. 3)',
         repHeader:'tatarin-system.jp / Work Progress Report', repProgPre:'Progress:', repProgPost:'cases complete', repDept:'TATARIN Inc., Operations Management Dept.', repTapNext:'▼ Tap to continue ▼',
         frSync:'SYNC COMPLETE', frBody1:'In addition to the 22 curses,\nyou have absorbed Noroh’s final core curse.', frBody2:'Contract complete. Well done.', frBody3:'Noroh Inc.’s runaway curses have been\nproperly dispersed and purified within your body.\nA work report will follow shortly\nfrom TATARIN Inc.\nYour daily wage has been paid into your family’s account.',
@@ -3852,7 +3852,7 @@ if (t === 'hacker') return (
               <div className="absolute bottom-2 left-0 right-0 text-center text-[8px] text-gray-800 opacity-40 z-20 pointer-events-none tracking-tighter">{t('titleCredit')}</div>
               <div className="relative z-10 bg-white p-8 border-[10px] border-dashed border-red-600 rounded-2xl transform -rotate-3 w-full max-w-[95%] animate-pulse">
                 <div className="absolute -top-4 -right-4 bg-red-600 text-white font-black text-sm py-2 px-8 transform rotate-12 whitespace-nowrap">{t('titleBadge')}</div>
-                <div className="absolute -top-4 -left-4 bg-black text-yellow-300 font-black text-sm py-2 px-6 transform -rotate-12 whitespace-nowrap border-4 border-yellow-300 shadow-lg z-30 animate-pulse">{t('demoBadge')}</div>
+                <div className="absolute -top-4 -left-4 bg-black text-yellow-300 font-black text-sm py-2 px-6 transform -rotate-12 whitespace-nowrap border-4 border-yellow-300 shadow-lg z-30 animate-pulse">{lang==='en'?'DEMO':'体験版'}</div>
                 <div className="mb-4 -mx-2 overflow-hidden rounded-lg border-4 border-yellow-300 shadow-lg">
                   <img src={FALLBACK_IMAGES.titleBg} className="w-full h-32 md:h-44 object-cover" alt="副業体験者の女性たち"/>
                   <div className="bg-gradient-to-r from-pink-500 via-red-600 to-pink-500 text-white text-[10px] md:text-xs font-black py-1 tracking-widest animate-pulse">
@@ -5218,56 +5218,70 @@ if (t === 'hacker') return (
               )}
             </>
           )}
-          {false && (
-<></>
-)}
-          {(gameState === 'clear' || gameState === 'ending') && (
-            <div className="absolute inset-0 z-[180] bg-yellow-400 flex flex-col items-center justify-center overflow-y-auto p-4 text-center">
-              <div className="absolute inset-0 w-full h-full bg-cover bg-center opacity-70" style={{ backgroundImage: `url('${FALLBACK_IMAGES.titleBg}')` }}></div>
-              <div className="relative z-10 bg-white p-6 md:p-8 border-[10px] border-dashed border-red-600 rounded-2xl transform -rotate-2 w-full max-w-[95%] my-8 shadow-[20px_20px_0px_rgba(0,0,0,0.6)]">
-                <div className="absolute -top-4 -right-4 bg-red-600 text-white font-black text-sm py-2 px-6 transform rotate-12 whitespace-nowrap shadow-lg border-2 border-white">CONTINUE ▶</div>
-                <div className="absolute -top-4 -left-4 bg-black text-yellow-300 font-black text-xs py-2 px-4 transform -rotate-6 whitespace-nowrap border-2 border-yellow-300 shadow-lg animate-pulse">{t('demoBadge')}</div>
-                <p className="text-[11px] text-red-600 font-bold tracking-widest mb-2">━━ THANK YOU ━━</p>
-                <p className="text-xl md:text-2xl font-black mb-3 text-red-700 leading-tight" style={{whiteSpace:'pre-line'}}>{t('demoStoryLine1')}</p>
-                <div className="my-4 -mx-2 overflow-hidden rounded-lg border-4 border-yellow-300 shadow-md">
-                  <img src={FALLBACK_IMAGES.titleBg} className="w-full h-28 object-cover" alt="banner"/>
-                  <div className="bg-gradient-to-r from-pink-500 via-red-600 to-pink-500 text-white text-[10px] font-black py-1 tracking-widest animate-pulse">
-                    ★ 続きは製品版で全解禁 / Full ver. reveals ALL ★
+          {gameState === 'ending' && (
+            <div className="absolute inset-0 z-[180] bg-black overflow-y-auto">
+              <div className="min-h-full w-full flex flex-col items-center justify-start py-10 px-6 text-center">
+                <div className="mb-6">
+                  <p className="text-[10px] tracking-[0.4em] text-red-400 mb-2 font-light">- THANK YOU FOR PLAYING -</p>
+                  <h1 className="text-xl md:text-2xl font-serif text-red-300 mb-2 tracking-wide" style={{textShadow: '0 0 15px rgba(255,80,100,0.6)', wordBreak:'keep-all'}}>{t('endTitle')}</h1>
+                  <p className="text-[10px] md:text-xs text-red-200/80 leading-relaxed px-2" style={{wordBreak:'keep-all', whiteSpace:'pre-line'}}>{t('endSubtitle')}</p>
+                </div>
+                <div className="mb-6 border-t border-b border-red-900/40 py-4 w-[80%] max-w-xs">
+                  <p className="text-[9px] tracking-[0.3em] text-gray-500 mb-1">DEVELOPED BY</p>
+                  <p className="text-base md:text-lg font-serif text-red-400 mb-4">Bocchi-Bochi-Games</p>
+                  <p className="text-[9px] tracking-[0.3em] text-gray-500 mb-1">DIRECTOR</p>
+                  <p className="text-base md:text-lg font-serif text-gray-200 mb-4">{t('endDirector')}</p>
+                  <p className="text-[8px] tracking-[0.2em] text-gray-600 mb-1 mt-4">SPECIAL THANKS</p>
+                  <p className="text-[10px] text-gray-400 leading-snug">Emoji designs by Twitter (Twemoji)<br/><span className="text-[8px] text-gray-600">Licensed under CC-BY 4.0</span></p>
+                </div>
+                <div className="mb-8 max-w-md text-[11px] md:text-[12px] text-gray-300 leading-relaxed text-left px-2">
+                  <p className="mb-3">{t('endBody1')}</p>
+                  <p className="mb-3">{t('endBody2')}</p>
+                  <p className="mb-3">{t('endBody3')}</p>
+                  <p>{t('endBody4')}</p>
+                </div>
+                <div className="border-t-2 border-red-900/60 pt-6 w-[90%] max-w-xs mb-8">
+                  <p className="text-sm text-red-400 mb-1 font-serif tracking-widest">{t('endRiteTitle')}</p>
+                  <p className="text-[10px] text-gray-500 mb-5">{t('endRiteSub')}</p>
+                  <div onClick={handleEndingPurify} className="cursor-pointer inline-block transform hover:scale-105 active:scale-95 transition-transform select-none">
+                    <ImageWithFallback srcKey="ofuda" alt="浄化の札" className="w-28 md:w-36 mx-auto drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]" />
                   </div>
+                  <p className="text-[10px] text-gray-500 mt-4 animate-pulse tracking-wider">{t('endTapPurify')}</p>
                 </div>
-                <p className="text-sm md:text-base font-bold text-gray-800 mb-3 bg-yellow-100 p-2 rounded leading-relaxed" style={{whiteSpace:'pre-line'}}>{t('demoStoryLine2')}</p>
-                <p className="text-sm md:text-base font-black text-red-600 mb-4 leading-relaxed" style={{whiteSpace:'pre-line'}}>{t('demoStoryLine3')}</p>
-                
-                <p className="text-[11px] text-gray-500 font-bold mb-3">{t('demoTitleHint')}</p>
-                
-                <button 
-                  onClick={(e)=>{e.stopPropagation(); alert(t('demoNotYet'));}} 
-                  className="w-full bg-gradient-to-b from-yellow-300 to-orange-600 border-4 border-black text-black font-black py-4 px-4 rounded-full text-lg md:text-xl shadow-[5px_5px_0px_#000] active:translate-y-1 active:shadow-none transition-all mb-3">
-                  {t('demoCTAMain')}
+              </div>
+            </div>
+          )}
+          {gameState === 'clear' && (
+            <div className="absolute inset-0 z-[180] bg-yellow-400 flex flex-col items-center justify-center overflow-y-auto p-4 text-center">
+              <div className="relative z-10 bg-white p-6 border-8 border-dashed border-red-600 rounded-2xl transform -rotate-2 w-full max-w-[95%] my-4 shadow-2xl">
+                <div className="absolute -top-4 -right-4 bg-red-600 text-white font-black text-sm py-2 px-6 transform rotate-12 whitespace-nowrap shadow-lg border-2 border-white">CONTINUE ▶</div>
+                <p className="text-[11px] text-red-600 font-bold tracking-widest mb-2">━━ THANK YOU ━━</p>
+                <p className="text-xl font-black mb-4 text-red-700">{lang==='en'?'Demo Complete!':'体験版クリア！'}</p>
+                <p className="text-sm font-bold text-gray-800 mb-4 bg-yellow-100 p-2 rounded">
+                  {lang==='en'?'CASE 8-23 reveal the full truth of this dark contract...':'続きの CASE 8〜23 では、真相が少しずつ明かされていきます。'}
+                </p>
+                <p className="text-sm font-black text-red-600 mb-4">
+                  {lang==='en'?'Who is the REAL client?':'「本当の依頼主」は、一体誰なのか——？'}
+                </p>
+                <p className="text-[11px] text-gray-500 font-bold mb-3">
+                  {lang==='en'?'*Demo: CASE 1-7 only':'※体験版は CASE 1〜7 まで'}
+                </p>
+                <button onClick={(e)=>{e.stopPropagation(); alert(lang==='en'?'*Store pages coming soon!':'※ストア登録はもうすぐ！');}} className="w-full bg-gradient-to-b from-yellow-300 to-orange-600 border-4 border-black text-black font-black py-4 px-4 rounded-full text-lg shadow-[5px_5px_0px_#000] active:translate-y-1 mb-3">
+                  {lang==='en'?'▶ Access full version!':'▶ 完全版を今すぐアクセス！'}
                 </button>
-                
                 <div className="grid grid-cols-2 gap-2 mb-3">
-                  <button 
-                    onClick={(e)=>{e.stopPropagation(); alert(t('demoNotYet'));}} 
-                    className="bg-gradient-to-b from-blue-500 to-blue-700 border-2 border-blue-900 text-white font-black py-3 px-2 rounded-lg text-xs md:text-sm shadow-md active:scale-95">
-                    🎮 {t('demoCTASteam')}
+                  <button onClick={(e)=>{e.stopPropagation(); alert(lang==='en'?'*Store pages coming soon!':'※ストア登録はもうすぐ！');}} className="bg-gradient-to-b from-blue-500 to-blue-700 border-2 border-blue-900 text-white font-black py-3 px-2 rounded-lg text-xs shadow-md">
+                    🎮 {lang==='en'?'Steam':'Steam版'}
                   </button>
-                  <button 
-                    onClick={(e)=>{e.stopPropagation(); alert(t('demoNotYet'));}} 
-                    className="bg-gradient-to-b from-pink-500 to-red-700 border-2 border-red-900 text-white font-black py-3 px-2 rounded-lg text-xs md:text-sm shadow-md active:scale-95">
-                    🎪 {t('demoCTAItch')}
+                  <button onClick={(e)=>{e.stopPropagation(); alert(lang==='en'?'*Store pages coming soon!':'※ストア登録はもうすぐ！');}} className="bg-gradient-to-b from-pink-500 to-red-700 border-2 border-red-900 text-white font-black py-3 px-2 rounded-lg text-xs shadow-md">
+                    🎪 itch.io
                   </button>
                 </div>
-                
-                <div className="border-t-2 border-dashed border-red-400 pt-3 mt-3">
-                  <p className="text-[10px] text-gray-500 font-bold tracking-widest mb-2">━━ MEMO ━━</p>
-                  <p className="text-[10px] text-gray-700 font-bold" style={{whiteSpace:'pre-line'}}>{t('demoAgencyMemo')}</p>
-                </div>
-                
-                <button 
-                  onClick={()=>doTransition('noise', () => setGameState('title'))} 
-                  className="mt-4 text-xs text-gray-500 underline font-bold hover:text-gray-800">
-                  {t('back')}
+                <p className="text-[10px] text-gray-500 mt-4">
+                  {lang==='en'?'*Outsourced by TATARIN Inc. (16 cases remain)':'※業務委託元: ㈱タタリン（残 16 案件）'}
+                </p>
+                <button onClick={()=>doTransition('noise', () => setGameState('title'))} className="mt-4 text-xs text-gray-500 underline font-bold">
+                  {lang==='en'?'‹ Back':'‹ 戻る'}
                 </button>
               </div>
             </div>
