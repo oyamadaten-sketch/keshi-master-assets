@@ -236,7 +236,9 @@ const AUDIO_FILES = {
   se_wrong: "audio/se_wrong.mp3",
   se_tap: "audio/se_tap.mp3",
   se_transition: "audio/se_tap.mp3",
-  se_purify: "audio/se_purify.mp3"
+  se_purify: "audio/se_purify.mp3",
+  se_shoot: "audio/se_shoot.mp3",
+  se_explosion: "audio/se_explosion.mp3"
 };
 const getAudioUrl = key => {
   const file = AUDIO_FILES[key];
@@ -3798,6 +3800,7 @@ function App() {
   const fireBullet = e => {
     e.stopPropagation();
     if (adStageState.isFiring || adStageState.showRealClose || adStageState.ammo <= 0) return;
+    playSE('se_shoot');
     setAdStageState(prev => ({
       ...prev,
       isFiring: true,
@@ -3812,6 +3815,7 @@ function App() {
         };
         if (isHit) {
           if (curr.enemyPhase === 1) {
+            playSE('se_explosion');
             nextState.enemyHit = true;
             setTimeout(() => {
               setAdStageState(p => ({
@@ -3822,7 +3826,7 @@ function App() {
               }));
             }, 1000);
           } else if (curr.enemyPhase === 2) {
-            nextState.enemy2Hit = true;
+            playSE('se_explosion'); nextState.enemy2Hit = true;
             setTimeout(() => {
               setAdStageState(p => ({
                 ...p,
