@@ -3323,6 +3323,7 @@ function App() {
   const isAdvancingRef = React.useRef(false);
   const adTimersRef = React.useRef([]);
   const lastAdvanceTimeRef = React.useRef(0);
+  const adAppearedTimeRef = React.useRef(0);  // 広告出現時刻（誤クリア防止用）
   const dragStartRef = React.useRef({
     x: 0,
     y: 0
@@ -3432,6 +3433,7 @@ function App() {
   };
   const triggerAd = () => {
     if (showAd || adStageState.isClearing) return;
+    adAppearedTimeRef.current = Date.now();
     const stage = STAGES[currentStageIndex];
     if (!stage) return;
     if (stage.id >= 10) return; // 中後はtimerトリガー側で処理
@@ -3538,6 +3540,7 @@ function App() {
   const handleCorrectClose = e => {
     if (e) e.stopPropagation();
     if (adStageState.isClearing) return;
+    if (adAppearedTimeRef.current > 0 && Date.now() - adAppearedTimeRef.current < 2000) return;
     setAdStageState(prev => ({
       ...prev,
       isClearing: true
