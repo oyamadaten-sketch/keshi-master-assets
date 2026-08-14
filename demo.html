@@ -7554,7 +7554,7 @@ function App() {
       key: s.id,
       disabled: !unlocked,
       onClick: () => jumpToStage(idx),
-      className: `relative rounded-lg p-2 text-left border min-h-[78px] flex flex-col justify-between transition-all ${unlocked ? cleared ? 'bg-blue-950/40 border-blue-700 active:scale-95' : 'bg-yellow-900/30 border-yellow-600 active:scale-95' : 'bg-gray-900 border-gray-800 opacity-60 cursor-not-allowed'}`
+      className: `relative rounded-lg p-2 text-left border min-h-[86px] flex flex-col justify-between transition-all ${unlocked ? cleared ? 'bg-blue-950/40 border-blue-700 active:scale-95' : 'bg-yellow-900/30 border-yellow-600 active:scale-95' : 'bg-gray-900 border-gray-800 opacity-60 cursor-not-allowed'}`
     }, /*#__PURE__*/React.createElement("div", {
       className: "flex items-center justify-between"
     }, /*#__PURE__*/React.createElement("span", {
@@ -7566,9 +7566,12 @@ function App() {
     }, "\u25B6") : /*#__PURE__*/React.createElement("span", {
       className: "text-gray-600 text-xs"
     }, "\uD83D\uDD12")), /*#__PURE__*/React.createElement("div", {
-      className: `text-[10px] font-bold leading-tight ${cleared ? 'text-gray-200' : 'text-gray-700'}`,
+      className: `text-[10px] font-bold leading-tight overflow-hidden ${cleared ? 'text-gray-200' : 'text-gray-700'}`,
       style: {
-        wordBreak: 'keep-all'
+        wordBreak: 'break-word',
+        display: '-webkit-box',
+        WebkitLineClamp: 3,
+        WebkitBoxOrient: 'vertical'
       }
     }, cleared ? s.siteTitle : '???'));
   })), /*#__PURE__*/React.createElement("p", {
