@@ -1,0 +1,48 @@
+消しマスター — THIRD-PARTY NOTICES / 第三者素材表記
+====================================================
+
+On-Jin ～音人～
+----------------
+本作の一部効果音には「On-Jin ～音人～」の音源素材を使用しています。
+素敵な音素材をご提供いただき、心より感謝いたします。
+https://on-jin.com/
+
+On-Jin提供素材の著作権・著作隣接権は権利者に帰属します。
+本作から音源素材を抽出し、二次配布または無断利用することを禁止します。
+
+Some sound effects in this game use audio materials provided by
+On-Jin ~Otojin~. We sincerely appreciate their wonderful sound materials.
+https://on-jin.com/
+
+Copyright and related rights in the On-Jin materials remain with their
+respective rights holder. Unauthorized extraction, reuse, or redistribution
+of these materials is prohibited.
+
+
+Twemoji
+-------
+Emoji designs by Twitter (Twemoji).
+Graphics licensed under Creative Commons Attribution 4.0 International.
+https://creativecommons.org/licenses/by/4.0/
+https://github.com/jdecked/twemoji
+
+
+React
+-----
+React is licensed under the MIT License.
+Copyright (c) Meta Platforms, Inc. and affiliates.
+https://github.com/facebook/react
+
+
+Tailwind CSS
+------------
+Tailwind CSS is licensed under the MIT License.
+Copyright (c) Tailwind Labs, Inc.
+https://github.com/tailwindlabs/tailwindcss
+
+
+Google Fonts
+------------
+The fonts used through Google Fonts are provided under their respective
+open-source font licenses, primarily the SIL Open Font License.
+https://fonts.google.com/

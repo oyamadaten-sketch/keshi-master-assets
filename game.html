@@ -255,7 +255,6 @@ const ASSET_FILES = {
   robotBlur: "image_a3e109.png",
   notify: "common/notify.png",
   textCaptcha: "common/textCaptcha.png",
-  recaptchaIcon: "common/recaptchaIcon.png",
   ofuda: "common/ofuda.png"
 };
 const FALLBACK_IMAGES = {
@@ -268,7 +267,6 @@ const FALLBACK_IMAGES = {
   case23Robot: "https://oyamadaten-sketch.github.io/keshi-master-assets/common/case23Robot.png",
   notify: "",
   textCaptcha: "",
-  recaptchaIcon: "https://oyamadaten-sketch.github.io/keshi-master-assets/common/recaptchaIcon.png",
   ofuda: "https://oyamadaten-sketch.github.io/keshi-master-assets/common/ofuda.png"
 };
 const ImageWithFallback = ({
@@ -881,7 +879,7 @@ const STAGE_EN = {
         text: `Ma'am, thanks for the "password_list.txt" saved right on your desktop lol`
       }, {
         name: `Hacker`,
-        text: `That camera feed just now — mid-changing-clothes, lmao. Recording saved.`
+        text: `Your front-door and living-room activity logs are complete. Recording saved.`
       }]
     }
   },
@@ -909,7 +907,7 @@ const STAGE_EN = {
         text: `We removed your ex's bug and swapped in our high-performance one, of course lol`
       }, {
         name: `Stalker`,
-        text: `Your look after today's shower was fantastic. Video saved.`
+        text: `Your daily schedule was easy to map. Every trip outside is now logged.`
       }, {
         name: `Stalker`,
         text: `You haven't changed the PIN, have you. Still that number — four deaths in a row — and tonight again you'll sleep, none the wiser.`
@@ -1997,7 +1995,7 @@ const STAGES = [{
       text: "おばさん、デスクトップに保存してる「パスワード一覧.txt」ごちそうさまですｗ"
     }, {
       name: "ハッカー",
-      text: "今のカメラ映像、服着替えてる最中で草。録画完了。"
+      text: "玄関と居間の行動記録、全部取れました。録画完了。"
     }]
   }
 }, {
@@ -2007,8 +2005,8 @@ const STAGES = [{
   layoutType: "security",
   imageNormal: "https://oyamadaten-sketch.github.io/keshi-master-assets/part3/case20_aegis/case20_hero_normal.png",
   imageCorrupted: "https://oyamadaten-sketch.github.io/keshi-master-assets/part3/case20_aegis/case20_hero_corrupted.png",
-  contentNormal: `ストーカー被害、社内の情報漏洩、近隣との悪質なトラブル……。現代社会において、目に見えない脅威は常に私たちのすぐそばに潜んでいます。アイギス防犯セキュリティは、そんな見えない恐怖からあなたをお守りする、防犯のプロフェッショナル集団です。\n\n【盗聴器・盗撮カメラ発見調査】\n「最近、誰かに見られている気がする」「部屋の中で不自然な物音がする」。そんな不安を感じたら、すぐにご相談ください。警察も使用する最新鋭の広帯域電波探知機と専用機材を使用し、コンセントの裏から天井裏まで、ご自宅やオフィスを徹底的に調査し、隠された悪意を確実に見つけ出します。\n\n【高性能防犯カメラの設置】\n犯罪を未然に防ぐためには、威圧感のある防犯カメラの設置が最も効果的です。暗視機能、動体検知、スマホ連動機能を備えた最新モデルを、最適な死角のない位置に設置いたします。設置後のメンテナンスや映像データの管理サポートも万全です。\n\n【※ご注意：初期暗証番号について】\n当社製スマートロックの初期パスワードは「死」を意味する『4』を四つ並べた『4444』を標準採用しております。「縁起が悪いから絶対に変更するだろう」というユーザー心理を逆手にとった、当社独自の二重防犯ロジックでございます。設置後は必ずお客様ご自身でお好みの番号にご変更ください。\n\nご相談、お見積りは24時間無料。プライバシー保護と秘密厳守を徹底しております。一人で悩まず、まずは私たちにご連絡ください。あなたの平穏な日常を取り戻すための、鉄壁の盾（アイギス）となります。`,
-  contentCorrupted: `ストーカー被害、情報漏洩、近隣トラブル——現代社会で本当の脅威は、「あなたを守る」と言って近づく、私どものような者でございます。アイギス防犯セキュリティは、あなたを見えない監視に陥れる、覗き見のプロフェッショナルでございます。\n\n【盗聴器・盗撮カメラ発見調査】　「誰かに見られている気がする」。その直感は、正しい。発見調査と称してお宅に上がり込み、コンセントの裏から天井裏まで、こちらの機材を新たに「設置」してまいります。見つけ出すのではなく、仕込みに伺うのでございます。\n\n【防犯カメラの設置】　死角のない位置に、と申し上げて取り付けたカメラの映像は、あなたを守るためではなく、私どもが眺め、売りさばくためのものでございます。入浴も、着替えも、眠る顔も。「お得意様」が、あなたの日常を待っております。\n\n初期暗証番号は『4444』。どうせ変えるだろうと見越した上で、変えなかった方の家にだけ、私どもは夜、鍵を開けて入らせていただきます。あなたの平穏は、とうに、私どもの監視下にございます。\n\n※盗撮され晒された末に苦しみ抜かれた被害者様のご遺族より、㈱ノローウへ呪殺ご依頼が届いております。`,
+  contentNormal: `ストーカー被害、社内の情報漏洩、近隣との悪質なトラブル……。現代社会において、目に見えない脅威は常に私たちのすぐそばに潜んでいます。アイギス防犯セキュリティは、そんな見えない恐怖からあなたをお守りする、防犯のプロフェッショナル集団です。\n\n【盗聴器・不正カメラ発見調査】\n「最近、誰かに見られている気がする」「部屋の中で不自然な物音がする」。そんな不安を感じたら、すぐにご相談ください。警察も使用する最新鋭の広帯域電波探知機と専用機材を使用し、コンセントの裏から天井裏まで、ご自宅やオフィスを徹底的に調査し、隠された悪意を確実に見つけ出します。\n\n【高性能防犯カメラの設置】\n犯罪を未然に防ぐためには、威圧感のある防犯カメラの設置が最も効果的です。暗視機能、動体検知、スマホ連動機能を備えた最新モデルを、最適な死角のない位置に設置いたします。設置後のメンテナンスや映像データの管理サポートも万全です。\n\n【※ご注意：初期暗証番号について】\n当社製スマートロックの初期パスワードは「死」を意味する『4』を四つ並べた『4444』を標準採用しております。「縁起が悪いから絶対に変更するだろう」というユーザー心理を逆手にとった、当社独自の二重防犯ロジックでございます。設置後は必ずお客様ご自身でお好みの番号にご変更ください。\n\nご相談、お見積りは24時間無料。プライバシー保護と秘密厳守を徹底しております。一人で悩まず、まずは私たちにご連絡ください。あなたの平穏な日常を取り戻すための、鉄壁の盾（アイギス）となります。`,
+  contentCorrupted: `ストーカー被害、情報漏洩、近隣トラブル——現代社会で本当の脅威は、「あなたを守る」と言って近づく、私どものような者でございます。アイギス防犯セキュリティは、あなたを見えない監視に陥れる、生活監視のプロフェッショナルでございます。\n\n【盗聴器・不正カメラ発見調査】　「誰かに見られている気がする」。その直感は、正しい。発見調査と称してお宅に上がり込み、コンセントの裏から天井裏まで、こちらの機材を新たに「設置」してまいります。見つけ出すのではなく、仕込みに伺うのでございます。\n\n【防犯カメラの設置】　死角のない位置に、と申し上げて取り付けたカメラの映像は、あなたを守るためではなく、私どもが生活パターンを把握し、売りさばくためのものでございます。帰宅時間も、留守の時間も、家族の生活パターンも。「お得意様」が、あなたの情報を待っております。\n\n初期暗証番号は『4444』。どうせ変えるだろうと見越した上で、変えなかった方の家にだけ、私どもは夜、鍵を開けて入らせていただきます。あなたの平穏は、とうに、私どもの監視下にございます。\n\n※生活を監視され、個人情報を晒された末に苦しみ抜かれた被害者様のご遺族より、㈱ノローウへ呪殺ご依頼が届いております。`,
   inlineImages: {
     normal: {
       1: "https://oyamadaten-sketch.github.io/keshi-master-assets/part3/case20_aegis/case20_sub1_normal.png",
@@ -2621,7 +2619,7 @@ const UI_EN = {
   'IDまたはパスワードが違います': 'Incorrect ID or password',
   'メールアドレス': 'Email address',
   'パスワード': 'Password',
-  'このサイトは reCAPTCHA で保護されています': 'This site is protected by reCAPTCHA',
+  'このサイトは HumanCheck で保護されています': 'This site is protected by HumanCheck',
   '行方不明者の情報をお寄せください。': 'Please share information about the missing person.',
   'お名前': 'Name',
   '山田 太郎': 'John Doe',
@@ -2994,8 +2992,8 @@ const UI_EN = {
   '対面カウンセリング': 'In-person counseling',
   'フルカスタム': 'Full custom',
   '直筆証明書': 'Signed certificate',
-  '朝日新聞 文化面': 'Asahi Shimbun, Culture',
-  'NHK あさイチ': 'NHK Asaichi',
+  '東都文芸新聞 文化面': 'Toto Arts Journal, Culture',
+  'JPNモーニング「朝の窓」': 'JPN Morning: Window to the Day',
   '2.4万': '24k',
   '人': 'people',
   'ご自宅まで': 'To your home',
@@ -4818,7 +4816,8 @@ function App() {
     return /*#__PURE__*/React.createElement("div", {
       className: "w-full bg-[#f4f1eb] min-h-full flex flex-col items-center shadow-md relative overflow-hidden pb-20 font-shippori"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] pointer-events-none"
+    className: "absolute inset-0 opacity-[0.08] pointer-events-none",
+    style: { backgroundImage: 'radial-gradient(circle at 20% 30%, rgba(80,60,40,.18) 0 .5px, transparent .8px), radial-gradient(circle at 70% 65%, rgba(255,255,255,.55) 0 .6px, transparent .9px)', backgroundSize: '4px 4px, 5px 5px' }
     }), /*#__PURE__*/React.createElement("header", {
       className: "w-full bg-[#3a2f28] text-[#f4f1eb] sticky top-0 z-30 shadow-lg"
     }, /*#__PURE__*/React.createElement("div", {
@@ -6342,7 +6341,7 @@ function App() {
       className: "text-base font-black border-l-4 border-purple-500 pl-3 mb-3 text-purple-900"
     }, tx('メディア掲載')), /*#__PURE__*/React.createElement("div", {
       className: "grid grid-cols-2 gap-2"
-    }, ['朝日新聞 文化面', 'NHK あさイチ', 'Hanako', 'Casa BRUTUS'].map((m, i) => /*#__PURE__*/React.createElement("div", {
+    }, ['東都文芸新聞 文化面', 'JPNモーニング「朝の窓」', 'HINATA LIFE', 'CASA & INK'].map((m, i) => /*#__PURE__*/React.createElement("div", {
       key: i,
       className: "bg-white border border-purple-100 rounded p-2 text-center text-[10px] text-purple-700 font-bold shadow-sm"
     }, m)))), /*#__PURE__*/React.createElement("div", {
@@ -7420,7 +7419,7 @@ function App() {
     }
   }, tx('ご注意ください')), /*#__PURE__*/React.createElement("div", {
     className: "text-[13px] md:text-sm text-gray-300 leading-loose text-left space-y-3 mb-6 px-1"
-  }, /*#__PURE__*/React.createElement("p", null, tx('本作はフィクションのホラー作品です。'), /*#__PURE__*/React.createElement("br", null), tx('暴力・流血など、過激な描写がございます。')), /*#__PURE__*/React.createElement("p", null, tx('作中には'), /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("p", null, tx('本作はフィクションのホラー作品です。'), /*#__PURE__*/React.createElement("br", null), tx('暴力・流血など、過激な描写がございます。')), /*#__PURE__*/React.createElement("p", null, "自殺、児童・動物への虐待、犯罪、遺体、宗教・オカルト儀式を想起させる表現が含まれます。"), /*#__PURE__*/React.createElement("p", null, "登場する人物・団体・企業・施設・ウェブサイト・商品・事件はすべて架空であり、実在のものとは関係ありません。"), /*#__PURE__*/React.createElement("p", null, tx('作中には'), /*#__PURE__*/React.createElement("span", {
     className: "text-red-300"
   }, tx('偽の広告・偽のウイルス警告')), tx('などの'), /*#__PURE__*/React.createElement("br", null), tx('描写がございますが、すべて'), /*#__PURE__*/React.createElement("br", null), tx('ゲーム内の演出です。'), /*#__PURE__*/React.createElement("br", null), tx('端末や個人情報には一切影響しません。')), /*#__PURE__*/React.createElement("p", null, tx('強い点滅・画面の乱れが演出として含まれます。'), /*#__PURE__*/React.createElement("br", null), tx('光に過敏な方や、苦手な方はご注意ください。')), /*#__PURE__*/React.createElement("p", {
     className: "text-gray-400"
@@ -7428,7 +7427,7 @@ function App() {
     className: "w-1/2 h-px bg-red-900/50 mx-auto mb-6"
   }), /*#__PURE__*/React.createElement("div", {
     className: "text-[12px] md:text-[13px] text-gray-400 leading-relaxed text-left space-y-3 mb-8 px-1"
-  }, /*#__PURE__*/React.createElement("p", null, "This is a work of horror fiction, containing intense content such as depictions of violence and blood."), /*#__PURE__*/React.createElement("p", null, "The ", /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("p", null, "This is a work of horror fiction, containing intense content such as depictions of violence and blood."), /*#__PURE__*/React.createElement("p", null, "It includes references to suicide, child and animal abuse, crime, corpses, religion, and occult rituals."), /*#__PURE__*/React.createElement("p", null, "All characters, organizations, companies, facilities, websites, products, and incidents depicted are fictional and are not affiliated with any real entity."), /*#__PURE__*/React.createElement("p", null, "The ", /*#__PURE__*/React.createElement("span", {
     className: "text-red-300"
   }, "fake ads and fake virus warnings"), " in this game are purely in-game effects. They do not affect your device or personal data in any way."), /*#__PURE__*/React.createElement("p", null, "Strong flashing and screen glitches are used as visual effects. Please take care if you are sensitive to light or uncomfortable with such effects."), /*#__PURE__*/React.createElement("p", {
     className: "text-gray-500"
@@ -7678,11 +7677,10 @@ function App() {
     className: "text-gray-800 text-sm font-bold font-sans text-left"
   }, tx('私はロボットではありません'), /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] text-gray-500 font-normal"
-  }, tx('認証してリトライを実行')))), /*#__PURE__*/React.createElement(ImageWithFallback, {
-    srcKey: "recaptchaIcon",
-    alt: "captcha-verify",
-    className: "w-12 opacity-80"
-  })), /*#__PURE__*/React.createElement("div", {
+  }, tx('認証してリトライを実行')))), /*#__PURE__*/React.createElement("div", {
+    className: "w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-2xl shadow-inner",
+    "aria-label": "HumanCheck"
+  }, "✓")), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col gap-3 w-full max-w-[320px] mx-auto items-center mt-12 opacity-70"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => doTransition('noise', setupIntroState),
@@ -8595,13 +8593,12 @@ function App() {
     className: "text-gray-800 font-bold flex-grow text-sm"
   }, tx('私はロボットではありません')), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col items-center pointer-events-none"
-  }, /*#__PURE__*/React.createElement(ImageWithFallback, {
-    srcKey: "recaptchaIcon",
-    alt: "captcha",
-    className: "w-9 opacity-80"
-  }), /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-xl shadow-inner",
+    "aria-label": "HumanCheck"
+  }, "✓"), /*#__PURE__*/React.createElement("span", {
     className: "text-[7px] text-gray-400 mt-0.5 font-bold"
-  }, "SecureCheck"))), /*#__PURE__*/React.createElement("div", {
+  }, "HumanCheck"))), /*#__PURE__*/React.createElement("div", {
     className: "text-[8px] text-gray-400 mt-2 flex justify-between"
   }, /*#__PURE__*/React.createElement("span", {
     className: "font-bold"
@@ -8732,7 +8729,7 @@ function App() {
     className: "mt-3 text-[10px] text-blue-600 underline font-bold"
   }, tx('パスワードを忘れた場合はこちら')), /*#__PURE__*/React.createElement("div", {
     className: "mt-3 pt-3 border-t border-gray-200 text-[8px] text-gray-400"
-  }, tx('このサイトは reCAPTCHA で保護されています'), /*#__PURE__*/React.createElement("br", null), tx('プライバシー・利用規約')))), currentStage.id === 13 && /*#__PURE__*/React.createElement("div", {
+  }, tx('このサイトは HumanCheck で保護されています'), /*#__PURE__*/React.createElement("br", null), tx('プライバシー・利用規約')))), currentStage.id === 13 && /*#__PURE__*/React.createElement("div", {
     className: "relative bg-black border-4 border-green-500 shadow-[0_0_30px_#22c55e] text-green-400 font-mono rounded-xl w-[95%] h-[480px] flex flex-col overflow-hidden",
     onClick: e => e.stopPropagation()
   }, /*#__PURE__*/React.createElement("div", {
@@ -9557,7 +9554,9 @@ function App() {
     className: "text-[10px] text-gray-400 leading-snug"
   }, "Emoji designs by Twitter (Twemoji)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
     className: "text-[8px] text-gray-600"
-  }, "Licensed under CC-BY 4.0"))), /*#__PURE__*/React.createElement("div", {
+  }, "Licensed under CC-BY 4.0"), /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), lang === 'en' ? 'Sound effects: On-Jin ~Otojin~' : '効果音素材：On-Jin ～音人～', /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
+    className: "text-[8px] text-gray-600"
+  }, lang === 'en' ? 'With heartfelt thanks for the wonderful sound materials.' : '素敵な音素材をご提供いただき、心より感謝いたします。', /*#__PURE__*/React.createElement("br", null), "https://on-jin.com/", /*#__PURE__*/React.createElement("br", null), lang === 'en' ? 'Unauthorized reuse or redistribution of On-Jin materials is prohibited.' : 'On-Jin提供素材の二次配布・無断利用を禁止します。'))), /*#__PURE__*/React.createElement("div", {
     className: "mb-8 max-w-md text-[11px] md:text-[12px] text-gray-300 leading-relaxed text-left px-2"
   }, /*#__PURE__*/React.createElement("p", {
     className: "mb-3"
